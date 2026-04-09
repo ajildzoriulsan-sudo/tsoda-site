@@ -1,0 +1,22 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#0B0B0B"/>
+  <rect x="110" y="90" width="980" height="720" rx="34" fill="url(#bg)" stroke="#C8A96A" stroke-opacity="0.35"/>
+  <circle cx="300" cy="240" r="126" fill="url(#glow)" fill-opacity="0.7"/>
+  <path d="M351 611L601 285L851 611H351Z" stroke="#F4EFE6" stroke-width="18"/>
+  <circle cx="600" cy="460" r="148" stroke="#C8A96A" stroke-width="12" stroke-dasharray="16 18"/>
+  <path d="M458 582L742 338" stroke="#F4EFE6" stroke-width="14" stroke-linecap="round"/>
+  <path d="M458 338L742 582" stroke="#F4EFE6" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="600" cy="460" r="24" fill="#C8A96A"/>
+  <text x="168" y="744" fill="#F4EFE6" font-family="Georgia, serif" font-size="74" letter-spacing="4">2D VECTOR</text>
+  <text x="172" y="794" fill="#C8A96A" font-family="Arial, sans-serif" font-size="24" letter-spacing="6">PRECISION CUT AND LINE ART</text>
+  <defs>
+    <linearGradient id="bg" x1="110" y1="90" x2="1090" y2="810" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#121212"/>
+      <stop offset="1" stop-color="#090909"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(300 240) rotate(90) scale(126)">
+      <stop stop-color="#C8A96A"/>
+      <stop offset="1" stop-color="#C8A96A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

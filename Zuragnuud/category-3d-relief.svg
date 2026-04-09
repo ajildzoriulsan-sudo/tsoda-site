@@ -1,0 +1,21 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#0B0B0B"/>
+  <rect x="110" y="90" width="980" height="720" rx="34" fill="url(#bg)" stroke="#C8A96A" stroke-opacity="0.35"/>
+  <circle cx="928" cy="232" r="146" fill="url(#glow)" fill-opacity="0.8"/>
+  <path d="M345 244C413 161 555 160 620 244C685 328 676 418 617 491C559 562 542 620 586 670" stroke="#F4EFE6" stroke-width="24" stroke-linecap="round"/>
+  <path d="M855 244C787 161 645 160 580 244C515 328 524 418 583 491C641 562 658 620 614 670" stroke="#F4EFE6" stroke-width="24" stroke-linecap="round"/>
+  <path d="M430 315C472 270 528 270 566 315C604 360 598 419 562 459C528 497 520 537 547 576" stroke="#C8A96A" stroke-width="12" stroke-linecap="round"/>
+  <path d="M770 315C728 270 672 270 634 315C596 360 602 419 638 459C672 497 680 537 653 576" stroke="#C8A96A" stroke-width="12" stroke-linecap="round"/>
+  <text x="168" y="744" fill="#F4EFE6" font-family="Georgia, serif" font-size="74" letter-spacing="4">3D RELIEF</text>
+  <text x="172" y="794" fill="#C8A96A" font-family="Arial, sans-serif" font-size="24" letter-spacing="6">SCULPTED HERITAGE SURFACES</text>
+  <defs>
+    <linearGradient id="bg" x1="110" y1="90" x2="1090" y2="810" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17130F"/>
+      <stop offset="1" stop-color="#090909"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(928 232) rotate(90) scale(146)">
+      <stop stop-color="#C8A96A"/>
+      <stop offset="1" stop-color="#C8A96A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>

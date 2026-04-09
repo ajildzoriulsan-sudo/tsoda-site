@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design Requests | Tsoda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell request-page-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Tsoda home">
+        <img class="brand-logo" src="Zuragnuud/Logo.png" alt="Tsoda logo">
+      </a>
+      <nav class="site-nav">
+        <a href="index.html#featured">Collection</a>
+        <a href="request.html">New Request</a>
+        <a href="auth.html">Login</a>
+        <a href="product.html">Product</a>
+      </nav>
+    </header>
+
+    <main class="request-page">
+      <section class="request-hero reveal-static">
+        <p class="eyebrow">Request System</p>
+        <h1>All Design Requests</h1>
+        <p class="request-hero-text">
+          Review every submitted request with title, budget, and progress status in one clean
+          premium dashboard.
+        </p>
+      </section>
+
+      <section class="request-list-section">
+        <div class="section-heading request-heading">
+          <div>
+            <p class="eyebrow">Request List</p>
+            <h2>Saved requests</h2>
+          </div>
+          <a class="hero-button" href="request.html">Request a Design</a>
+        </div>
+
+        <div class="request-list-grid" id="request-list"></div>
+        <div class="empty-state" id="request-empty-state" hidden>
+          <p class="eyebrow">No Requests Yet</p>
+          <h3>Start your first custom design request</h3>
+          <a class="product-link" href="request.html">Create Request</a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+  <script src="requests.js"></script>
+</body>
+</html>

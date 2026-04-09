@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account | Tsoda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell auth-page-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Tsoda home">
+        <img class="brand-logo" src="Zuragnuud/Logo.png" alt="Tsoda logo">
+      </a>
+      <nav class="site-nav">
+        <a href="index.html#featured">Collection</a>
+        <a href="request.html">Request</a>
+        <a href="requests.html">Requests</a>
+      </nav>
+    </header>
+
+    <main class="auth-page">
+      <section class="auth-shell">
+        <div class="auth-intro">
+          <p class="eyebrow">Account Access</p>
+          <h1>Enter the Tsoda archive</h1>
+          <p class="request-hero-text">
+            Sign in to manage your premium downloads and request history, or create a new account
+            with a minimal dark luxury interface.
+          </p>
+        </div>
+
+        <div class="auth-card">
+          <div class="auth-tabs" role="tablist" aria-label="Account forms">
+            <button class="auth-tab is-active" type="button" data-auth-target="login-form" role="tab" aria-selected="true">Login</button>
+            <button class="auth-tab" type="button" data-auth-target="signup-form" role="tab" aria-selected="false">Sign Up</button>
+          </div>
+
+          <form id="login-form" class="auth-form">
+            <label class="form-field">
+              <span>Email</span>
+              <input type="email" name="email" placeholder="you@example.com" required>
+            </label>
+            <label class="form-field">
+              <span>Password</span>
+              <input type="password" name="password" placeholder="Enter your password" required>
+            </label>
+            <button class="hero-button" type="submit">Login</button>
+          </form>
+
+          <form id="signup-form" class="auth-form" hidden>
+            <label class="form-field">
+              <span>Email</span>
+              <input type="email" name="email" placeholder="you@example.com" required>
+            </label>
+            <label class="form-field">
+              <span>Password</span>
+              <input type="password" name="password" placeholder="Create a password" required>
+            </label>
+            <button class="hero-button" type="submit">Create Account</button>
+          </form>
+
+          <p class="form-message" id="auth-message" aria-live="polite"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+  <script src="auth.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Request a Design | Tsoda</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell request-page-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Tsoda home">
+        <img class="brand-logo" src="Zuragnuud/Logo.png" alt="Tsoda logo">
+      </a>
+      <nav class="site-nav">
+        <a href="index.html#featured">Collection</a>
+        <a href="product.html">Product</a>
+        <a href="auth.html">Login</a>
+        <a href="requests.html">Requests</a>
+      </nav>
+    </header>
+
+    <main class="request-page">
+      <section class="request-hero reveal-static">
+        <p class="eyebrow">Request System</p>
+        <h1>Request a Design</h1>
+        <p class="request-hero-text">
+          Share your idea, reference image, and budget to start a custom Mongolian-inspired
+          digital design request with a clean, premium workflow.
+        </p>
+      </section>
+
+      <section class="request-layout">
+        <div class="request-form-card">
+          <div class="section-heading request-heading">
+            <div>
+              <p class="eyebrow">Submission Form</p>
+              <h2>Create your request</h2>
+            </div>
+          </div>
+
+          <form id="design-request-form" class="request-form">
+            <label class="form-field">
+              <span>Title</span>
+              <input type="text" name="title" placeholder="Ex: Altan pattern wall relief" required>
+            </label>
+
+            <label class="form-field">
+              <span>Description</span>
+              <textarea name="description" rows="6" placeholder="Describe the design style, format, dimensions, and intended use." required></textarea>
+            </label>
+
+            <label class="form-field">
+              <span>Image Upload</span>
+              <input type="file" name="image" id="request-image" accept="image/*">
+            </label>
+
+            <div class="upload-preview" id="upload-preview" hidden>
+              <img id="upload-preview-image" alt="Uploaded reference preview">
+            </div>
+
+            <label class="form-field">
+              <span>Budget (Optional)</span>
+              <input type="text" name="budget" placeholder="Ex: $80 - $150">
+            </label>
+
+            <button class="hero-button" type="submit">Submit Request</button>
+            <p class="form-message" id="form-message" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <aside class="request-side-card">
+          <p class="eyebrow">Workflow</p>
+          <h3>How it works</h3>
+          <p>Submit your concept with a short description and optional visual reference.</p>
+          <p>Your request is saved locally in the browser and appears instantly in the request list.</p>
+          <a class="product-link" href="requests.html">View All Requests</a>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+  <script src="requests.js"></script>
+</body>
+</html>
