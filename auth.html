@@ -1,75 +1,135 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Account | Tsoda</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Нэвтрэх | Tsoda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=EB+Garamond:wght@400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#f7f3ee; --cream2:#ede7dc; --cream3:#e2d9cc; --parchment:#cfc3b0;
+  --brown:#1a1108; --brown2:#3d2b18; --brown3:#7a5c38;
+  --sienna:#8b3a18; --gold:#b07d2a;
+  --border:rgba(26,17,8,0.1); --border2:rgba(26,17,8,0.2);
+  --display:'Playfair Display',Georgia,serif;
+  --body:'EB Garamond',Georgia,serif;
+  --ui:'Jost',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--cream);color:var(--brown);font-family:var(--body);font-size:17px;line-height:1.75;min-height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z' fill='none' stroke='%231a1108' stroke-width='0.3' opacity='0.04'/%3E%3C/svg%3E");background-size:60px 60px;}
+body>*{position:relative;z-index:1;}
+
+nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:18px 40px;background:rgba(247,243,238,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo img{height:28px;}
+.logo-text{font-family:var(--display);font-size:20px;font-weight:500;color:var(--brown);letter-spacing:0.04em;}
+.nav-links{display:flex;align-items:center;gap:28px;list-style:none;}
+.nav-links a{font-family:var(--ui);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.nav-links a:hover{color:var(--brown);}
+.nav-links a.active{color:var(--sienna);}
+
+.auth-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:60px 20px;}
+.auth-box{width:100%;max-width:420px;}
+.auth-eyebrow{font-family:var(--ui);font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--sienna);margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.auth-eyebrow::before{content:'';display:block;width:32px;height:1px;background:var(--sienna);}
+.auth-title{font-family:var(--display);font-size:clamp(32px,5vw,48px);font-weight:400;line-height:1.1;letter-spacing:-0.02em;color:var(--brown);margin-bottom:8px;}
+.auth-title em{font-style:italic;color:var(--sienna);}
+.auth-sub{font-size:15px;color:var(--brown2);margin-bottom:40px;line-height:1.7;}
+
+.tab-row{display:flex;border-bottom:1px solid var(--border);margin-bottom:36px;}
+.tab-btn{flex:1;background:none;border:none;font-family:var(--ui);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--brown3);padding:12px 0;cursor:pointer;transition:color 0.2s;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.tab-btn.active{color:var(--sienna);border-bottom-color:var(--sienna);}
+.tab-btn:hover{color:var(--brown);}
+
+.form-panel{display:none;}
+.form-panel.active{display:block;}
+.form-label{font-family:var(--ui);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--brown3);margin-bottom:8px;display:block;}
+.form-input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--border2);color:var(--brown);font-family:var(--body);font-size:17px;padding:10px 0 12px;outline:none;transition:border-color 0.2s;margin-bottom:28px;}
+.form-input:focus{border-bottom-color:var(--sienna);}
+.form-input::placeholder{color:var(--parchment);}
+.auth-btn{width:100%;background:var(--sienna);color:var(--cream);border:none;font-family:var(--ui);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;cursor:pointer;transition:background 0.2s;margin-top:8px;}
+.auth-btn:hover{background:var(--brown);}
+.form-note{font-family:var(--ui);font-size:11px;color:var(--parchment);text-align:center;margin-top:20px;letter-spacing:0.04em;}
+
+footer{padding:32px 40px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--cream2);}
+.footer-brand{font-family:var(--display);font-size:20px;color:var(--brown);font-weight:400;}
+.footer-link{font-family:var(--ui);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.footer-link:hover{color:var(--sienna);}
+
+@media(max-width:768px){
+  nav{padding:14px 20px;}
+  .nav-links{display:none;}
+  .auth-wrap{padding:40px 20px;}
+  footer{padding:24px 20px;flex-direction:column;gap:12px;text-align:center;}
+}
+</style>
 </head>
 <body>
-  <div class="page-shell auth-page-shell">
-    <header class="site-header">
-      <a class="brand" href="index.html" aria-label="Tsoda home">
-        <img class="brand-logo" src="Zuragnuud/Logo.png" alt="Tsoda logo">
-      </a>
-      <nav class="site-nav">
-        <a href="index.html#featured">Collection</a>
-        <a href="request.html">Request</a>
-        <a href="requests.html">Requests</a>
-      </nav>
-    </header>
 
-    <main class="auth-page">
-      <section class="auth-shell">
-        <div class="auth-intro">
-          <p class="eyebrow">Account Access</p>
-          <h1>Enter the Tsoda archive</h1>
-          <p class="request-hero-text">
-            Sign in to manage your premium downloads and request history, or create a new account
-            with a minimal dark luxury interface.
-          </p>
-        </div>
+<nav>
+  <a class="logo" href="index.html">
+    <img src="Zuragnuud/Logo.png" alt="Tsoda" onerror="this.style.display='none'">
+    <span class="logo-text">Tsoda</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Нүүр</a></li>
+    <li><a href="index.html#cat-anchor">2D / 3D</a></li>
+    <li><a href="request.html">Захиалга</a></li>
+    <li><a href="auth.html" class="active">Нэвтрэх</a></li>
+  </ul>
+</nav>
 
-        <div class="auth-card">
-          <div class="auth-tabs" role="tablist" aria-label="Account forms">
-            <button class="auth-tab is-active" type="button" data-auth-target="login-form" role="tab" aria-selected="true">Login</button>
-            <button class="auth-tab" type="button" data-auth-target="signup-form" role="tab" aria-selected="false">Sign Up</button>
-          </div>
+<div class="auth-wrap">
+  <div class="auth-box">
+    <div class="auth-eyebrow">Хэрэглэгчийн эрх</div>
+    <h1 class="auth-title">Tsoda <em>Archive</em></h1>
+    <p class="auth-sub">Татаж авсан файл болон захиалгын түүхийг удирдахын тулд нэвтэрнэ үү.</p>
 
-          <form id="login-form" class="auth-form">
-            <label class="form-field">
-              <span>Email</span>
-              <input type="email" name="email" placeholder="you@example.com" required>
-            </label>
-            <label class="form-field">
-              <span>Password</span>
-              <input type="password" name="password" placeholder="Enter your password" required>
-            </label>
-            <button class="hero-button" type="submit">Login</button>
-          </form>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="showTab('login')">Нэвтрэх</button>
+      <button class="tab-btn" onclick="showTab('signup')">Бүртгүүлэх</button>
+    </div>
 
-          <form id="signup-form" class="auth-form" hidden>
-            <label class="form-field">
-              <span>Email</span>
-              <input type="email" name="email" placeholder="you@example.com" required>
-            </label>
-            <label class="form-field">
-              <span>Password</span>
-              <input type="password" name="password" placeholder="Create a password" required>
-            </label>
-            <button class="hero-button" type="submit">Create Account</button>
-          </form>
+    <div class="form-panel active" id="panel-login">
+      <label class="form-label">Имэйл хаяг</label>
+      <input type="email" class="form-input" placeholder="hello@example.com">
+      <label class="form-label">Нууц үг</label>
+      <input type="password" class="form-input" placeholder="••••••••">
+      <button class="auth-btn" onclick="handleAuth('login')">Нэвтрэх</button>
+      <p class="form-note">Нууц үгээ мартсан уу? <a href="mailto:hello@tsoda.mn" style="color:var(--sienna);text-decoration:none;">Бидэнтэй холбоо барина уу</a></p>
+    </div>
 
-          <p class="form-message" id="auth-message" aria-live="polite"></p>
-        </div>
-      </section>
-    </main>
+    <div class="form-panel" id="panel-signup">
+      <label class="form-label">Нэр</label>
+      <input type="text" class="form-input" placeholder="Таны нэр">
+      <label class="form-label">Имэйл хаяг</label>
+      <input type="email" class="form-input" placeholder="hello@example.com">
+      <label class="form-label">Нууц үг</label>
+      <input type="password" class="form-input" placeholder="••••••••">
+      <button class="auth-btn" onclick="handleAuth('signup')">Бүртгүүлэх</button>
+      <p class="form-note">Бүртгүүлснээр үйлчилгээний нөхцөлийг зөвшөөрч байна.</p>
+    </div>
   </div>
+</div>
 
-  <script src="script.js"></script>
-  <script src="auth.js"></script>
+<footer>
+  <span class="footer-brand">Tsoda</span>
+  <a href="mailto:hello@tsoda.mn" class="footer-link">hello@tsoda.mn</a>
+</footer>
+
+<script>
+function showTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='signup')));
+  document.getElementById('panel-login').classList.toggle('active', tab==='login');
+  document.getElementById('panel-signup').classList.toggle('active', tab==='signup');
+}
+function handleAuth(type) {
+  alert(type === 'login' ? 'Нэвтрэх систем удахгүй нэмэгдэнэ.' : 'Бүртгэл удахгүй нэмэгдэнэ.');
+}
+</script>
 </body>
 </html>

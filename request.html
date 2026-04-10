@@ -1,89 +1,186 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Request a Design | Tsoda</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Захиалга өгөх | Tsoda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=EB+Garamond:wght@400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#f7f3ee; --cream2:#ede7dc; --cream3:#e2d9cc; --parchment:#cfc3b0;
+  --brown:#1a1108; --brown2:#3d2b18; --brown3:#7a5c38;
+  --sienna:#8b3a18; --gold:#b07d2a;
+  --border:rgba(26,17,8,0.1); --border2:rgba(26,17,8,0.2);
+  --display:'Playfair Display',Georgia,serif;
+  --body:'EB Garamond',Georgia,serif;
+  --ui:'Jost',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--cream);color:var(--brown);font-family:var(--body);font-size:17px;line-height:1.75;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z' fill='none' stroke='%231a1108' stroke-width='0.3' opacity='0.04'/%3E%3C/svg%3E");background-size:60px 60px;}
+body>*{position:relative;z-index:1;}
+
+nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:18px 40px;background:rgba(247,243,238,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo img{height:28px;}
+.logo-text{font-family:var(--display);font-size:20px;font-weight:500;color:var(--brown);letter-spacing:0.04em;}
+.nav-links{display:flex;align-items:center;gap:28px;list-style:none;}
+.nav-links a{font-family:var(--ui);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.nav-links a:hover{color:var(--brown);}
+.nav-links a.active{color:var(--sienna);}
+
+.page-wrap{max-width:720px;margin:0 auto;padding:72px 40px;}
+.page-eyebrow{font-family:var(--ui);font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--sienna);margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.page-eyebrow::before{content:'';display:block;width:32px;height:1px;background:var(--sienna);}
+.page-title{font-family:var(--display);font-size:clamp(36px,5vw,56px);font-weight:400;line-height:1.1;letter-spacing:-0.02em;color:var(--brown);margin-bottom:12px;}
+.page-title em{font-style:italic;color:var(--sienna);}
+.page-sub{font-size:16px;color:var(--brown2);max-width:480px;line-height:1.8;margin-bottom:52px;}
+
+.form-section{border-top:1px solid var(--border);padding-top:40px;margin-bottom:40px;}
+.form-label{font-family:var(--ui);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--brown3);margin-bottom:8px;display:block;}
+.form-input{width:100%;background:transparent;border:none;border-bottom:1px solid var(--border2);color:var(--brown);font-family:var(--body);font-size:17px;padding:10px 0 12px;outline:none;transition:border-color 0.2s;margin-bottom:32px;}
+.form-input:focus{border-bottom-color:var(--sienna);}
+.form-input::placeholder{color:var(--parchment);}
+textarea.form-input{resize:vertical;min-height:120px;border:1px solid var(--border2);padding:12px 14px;background:var(--cream2);}
+textarea.form-input:focus{border-color:var(--sienna);}
+
+.upload-zone{border:1px dashed var(--border2);padding:36px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:32px;background:var(--cream2);}
+.upload-zone:hover{border-color:var(--sienna);background:var(--cream3);}
+.upload-label{font-family:var(--ui);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);margin-bottom:6px;}
+.upload-sub{font-size:14px;color:var(--parchment);}
+.upload-preview{max-width:100%;max-height:200px;margin-top:16px;display:none;}
+
+.submit-btn{width:100%;background:var(--sienna);color:var(--cream);border:none;font-family:var(--ui);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;padding:16px;cursor:pointer;transition:background 0.2s;margin-top:8px;}
+.submit-btn:hover{background:var(--brown);}
+
+.success-msg{display:none;background:rgba(74,107,66,0.08);border:1px solid rgba(74,107,66,0.2);padding:20px 24px;margin-top:24px;}
+.success-msg p{font-family:var(--ui);font-size:13px;color:var(--brown2);letter-spacing:0.04em;}
+
+.how-section{margin-top:64px;padding-top:40px;border-top:1px solid var(--border);}
+.how-title{font-family:var(--display);font-size:28px;font-weight:400;color:var(--brown);margin-bottom:32px;}
+.how-steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;}
+.how-step{}
+.how-num{font-family:var(--display);font-size:36px;font-weight:400;font-style:italic;color:var(--parchment);margin-bottom:10px;}
+.how-step-title{font-family:var(--ui);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown);margin-bottom:8px;}
+.how-step-desc{font-size:15px;color:var(--brown2);line-height:1.7;}
+
+footer{padding:40px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--cream2);margin-top:80px;}
+.footer-brand{font-family:var(--display);font-size:20px;color:var(--brown);font-weight:400;}
+.footer-link{font-family:var(--ui);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.footer-link:hover{color:var(--sienna);}
+
+@media(max-width:768px){
+  nav{padding:14px 20px;}
+  .nav-links{display:none;}
+  .page-wrap{padding:48px 20px;}
+  .how-steps{grid-template-columns:1fr;}
+  footer{padding:32px 20px;flex-direction:column;gap:16px;text-align:center;}
+}
+</style>
 </head>
 <body>
-  <div class="page-shell request-page-shell">
-    <header class="site-header">
-      <a class="brand" href="index.html" aria-label="Tsoda home">
-        <img class="brand-logo" src="Zuragnuud/Logo.png" alt="Tsoda logo">
-      </a>
-      <nav class="site-nav">
-        <a href="index.html#featured">Collection</a>
-        <a href="product.html">Product</a>
-        <a href="auth.html">Login</a>
-        <a href="requests.html">Requests</a>
-      </nav>
-    </header>
 
-    <main class="request-page">
-      <section class="request-hero reveal-static">
-        <p class="eyebrow">Request System</p>
-        <h1>Request a Design</h1>
-        <p class="request-hero-text">
-          Share your idea, reference image, and budget to start a custom Mongolian-inspired
-          digital design request with a clean, premium workflow.
-        </p>
-      </section>
+<nav>
+  <a class="logo" href="index.html">
+    <img src="Zuragnuud/Logo.png" alt="Tsoda" onerror="this.style.display='none'">
+    <span class="logo-text">Tsoda</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Нүүр</a></li>
+    <li><a href="index.html#cat-anchor">2D / 3D</a></li>
+    <li><a href="request.html" class="active">Захиалга</a></li>
+    <li><a href="auth.html">Нэвтрэх</a></li>
+  </ul>
+</nav>
 
-      <section class="request-layout">
-        <div class="request-form-card">
-          <div class="section-heading request-heading">
-            <div>
-              <p class="eyebrow">Submission Form</p>
-              <h2>Create your request</h2>
-            </div>
-          </div>
+<div class="page-wrap">
+  <div class="page-eyebrow">Захиалгын систем</div>
+  <h1 class="page-title">Захиалга <em>өгөх</em></h1>
+  <p class="page-sub">Таны санаа, лавлах зураг болон төсвийг хуваалцаарай — Монгол уламжлалт дижитал дизайны захиалгыг шуурхай, тодорхой ажлын урсгалаар хүлээн авна.</p>
 
-          <form id="design-request-form" class="request-form">
-            <label class="form-field">
-              <span>Title</span>
-              <input type="text" name="title" placeholder="Ex: Altan pattern wall relief" required>
-            </label>
+  <div class="form-section">
+    <label class="form-label">Гарчиг</label>
+    <input type="text" class="form-input" id="req-title" placeholder="Жишээ: Морин хуурын угалзан хээ — STL">
 
-            <label class="form-field">
-              <span>Description</span>
-              <textarea name="description" rows="6" placeholder="Describe the design style, format, dimensions, and intended use." required></textarea>
-            </label>
+    <label class="form-label">Тайлбар</label>
+    <textarea class="form-input" id="req-desc" placeholder="Ямар зориулалттай, ямар хэмжээтэй, ямар файлын формат хэрэгтэй вэ?"></textarea>
 
-            <label class="form-field">
-              <span>Image Upload</span>
-              <input type="file" name="image" id="request-image" accept="image/*">
-            </label>
+    <label class="form-label">Лавлах зураг (заавал биш)</label>
+    <div class="upload-zone" onclick="document.getElementById('req-img').click()">
+      <div class="upload-label">Зураг оруулах</div>
+      <div class="upload-sub">PNG, JPG, SVG — дарж сонгоно уу</div>
+      <img class="upload-preview" id="upload-preview">
+    </div>
+    <input type="file" id="req-img" accept="image/*" style="display:none" onchange="previewImg(this)">
 
-            <div class="upload-preview" id="upload-preview" hidden>
-              <img id="upload-preview-image" alt="Uploaded reference preview">
-            </div>
+    <label class="form-label">Төсөв (заавал биш)</label>
+    <input type="text" class="form-input" id="req-budget" placeholder="Жишээ: $30–$50">
 
-            <label class="form-field">
-              <span>Budget (Optional)</span>
-              <input type="text" name="budget" placeholder="Ex: $80 - $150">
-            </label>
+    <button class="submit-btn" onclick="submitRequest()">Захиалга илгээх</button>
 
-            <button class="hero-button" type="submit">Submit Request</button>
-            <p class="form-message" id="form-message" aria-live="polite"></p>
-          </form>
-        </div>
-
-        <aside class="request-side-card">
-          <p class="eyebrow">Workflow</p>
-          <h3>How it works</h3>
-          <p>Submit your concept with a short description and optional visual reference.</p>
-          <p>Your request is saved locally in the browser and appears instantly in the request list.</p>
-          <a class="product-link" href="requests.html">View All Requests</a>
-        </aside>
-      </section>
-    </main>
+    <div class="success-msg" id="success-msg">
+      <p>✦ Захиалга амжилттай хадгалагдлаа. Удахгүй холбоо барина.</p>
+    </div>
   </div>
 
-  <script src="script.js"></script>
-  <script src="requests.js"></script>
+  <div class="how-section">
+    <div class="how-title">Хэрхэн ажилладаг вэ?</div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="how-num">01</div>
+        <div class="how-step-title">Захиалга илгээх</div>
+        <div class="how-step-desc">Санаагаа товч тайлбарлаж, лавлах зураг болон төсвөө дамжуулна.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">02</div>
+        <div class="how-step-title">Зөвшилцөх</div>
+        <div class="how-step-desc">Имэйлээр холбогдож, дэлгэрэнгүй шаардлага, хугацаа, үнийг тохироно.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">03</div>
+        <div class="how-step-title">Файл хүлээн авах</div>
+        <div class="how-step-desc">Дуусгасан файлыг Gumroad-р дамжуулан шууд имэйлд хүргэнэ.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span class="footer-brand">Tsoda</span>
+  <a href="mailto:hello@tsoda.mn" class="footer-link">hello@tsoda.mn</a>
+</footer>
+
+<script>
+function previewImg(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('upload-preview');
+    prev.src = e.target.result;
+    prev.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function submitRequest() {
+  const title = document.getElementById('req-title').value.trim();
+  const desc = document.getElementById('req-desc').value.trim();
+  if (!title) { document.getElementById('req-title').focus(); return; }
+  const req = { id: Date.now(), title, desc, budget: document.getElementById('req-budget').value.trim(), date: new Date().toLocaleDateString('mn-MN') };
+  const requests = JSON.parse(localStorage.getItem('tsoda-requests') || '[]');
+  requests.unshift(req);
+  localStorage.setItem('tsoda-requests', JSON.stringify(requests));
+  document.getElementById('success-msg').style.display = 'block';
+  document.getElementById('req-title').value = '';
+  document.getElementById('req-desc').value = '';
+  document.getElementById('req-budget').value = '';
+  document.getElementById('upload-preview').style.display = 'none';
+  window.scrollTo({ top: document.getElementById('success-msg').offsetTop - 100, behavior: 'smooth' });
+}
+</script>
 </body>
 </html>
