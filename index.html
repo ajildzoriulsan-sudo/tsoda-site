@@ -1,312 +1,619 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tsoda | Mongolian Digital Heritage</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tsoda | Mongolian Digital Heritage</title>
+<meta name="description" content="Premium 3D and 2D design assets inspired by Mongolian ornament, craft, and architectural identity.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://gumroad.com/js/gumroad.js"></script>
+<style>
+:root{
+  --cream:#f5efe4; --cream2:#ede4d4; --cream3:#e0d5c0; --parchment:#d4c9ae;
+  --brown:#2c1f0e; --brown2:#4a3520; --brown3:#7a5c38;
+  --sienna:#9b4c1e; --gold:#b8832a; --gold2:#d4a84b;
+  --sage:#5c6b50;
+  --border:rgba(44,31,14,0.12); --border2:rgba(44,31,14,0.22);
+  --display:'Playfair Display',Georgia,serif;
+  --body:'EB Garamond',Georgia,serif;
+  --ui:'Jost',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--cream); color:var(--brown);
+  font-family:var(--body); font-size:17px; line-height:1.75; min-height:100vh;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 0 L60 30 L30 60 L0 30 Z' fill='none' stroke='%232c1f0e' stroke-width='0.3' opacity='0.05'/%3E%3C/svg%3E");
+  background-size:60px 60px;
+}
+body>*{position:relative;z-index:1;}
+
+/* NAV */
+nav{
+  position:sticky;top:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 40px;
+  background:rgba(245,239,228,0.95);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo img{height:28px;}
+.logo-text{font-family:var(--display);font-size:20px;font-weight:500;color:var(--brown);letter-spacing:0.04em;}
+.nav-links{display:flex;align-items:center;gap:32px;list-style:none;}
+.nav-links a{font-family:var(--ui);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.nav-links a:hover{color:var(--brown);}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.cart-toggle{
+  display:flex;align-items:center;gap:8px;
+  background:none;border:1px solid var(--border2);color:var(--brown2);
+  font-family:var(--ui);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;
+  padding:8px 16px;cursor:pointer;transition:all 0.2s;
+}
+.cart-toggle:hover{background:var(--brown);color:var(--cream);border-color:var(--brown);}
+.cart-toggle.has-items{background:var(--sienna);color:var(--cream);border-color:var(--sienna);}
+.cart-dot{
+  min-width:18px;height:18px;border-radius:99px;
+  background:var(--cream);color:var(--sienna);
+  display:none;align-items:center;justify-content:center;
+  font-size:10px;font-weight:500;padding:0 5px;
+}
+.cart-dot.visible{display:flex;}
+@keyframes cartPop{0%{transform:scale(1);}40%{transform:scale(1.4);}70%{transform:scale(0.9);}100%{transform:scale(1);}}
+.cart-dot.pop{animation:cartPop 0.35s ease;}
+.hamburger{
+  display:none;flex-direction:column;justify-content:center;
+  gap:5px;background:none;border:none;cursor:pointer;padding:4px;
+}
+.hamburger span{display:block;width:22px;height:1.5px;background:var(--brown2);transition:all 0.25s;transform-origin:center;}
+.hamburger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg);background:var(--brown);}
+.hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0);}
+.hamburger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg);background:var(--brown);}
+
+/* MOBILE MENU */
+.mobile-menu{
+  display:none;position:fixed;inset:0;z-index:150;
+  background:var(--cream);flex-direction:column;align-items:center;justify-content:center;
+}
+.mobile-menu.open{display:flex;}
+.mobile-menu a{
+  font-family:var(--display);font-size:30px;font-weight:400;font-style:italic;
+  color:var(--brown2);text-decoration:none;padding:14px 0;
+  border-bottom:1px solid var(--border);width:200px;text-align:center;transition:color 0.2s;
+}
+.mobile-menu a:last-of-type{border-bottom:none;}
+.mobile-menu a:hover{color:var(--sienna);}
+.mobile-cart-btn{
+  margin-top:28px;background:var(--sienna);color:var(--cream);border:none;
+  font-family:var(--ui);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;
+  padding:12px 32px;cursor:pointer;display:flex;align-items:center;gap:8px;
+}
+.mobile-dot{
+  min-width:18px;height:18px;border-radius:99px;background:var(--cream);color:var(--sienna);
+  display:none;align-items:center;justify-content:center;font-size:10px;font-weight:500;padding:0 5px;
+}
+.mobile-dot.visible{display:flex;}
+
+/* PAGES */
+.page{display:none;}
+.page.active{display:block;}
+
+/* HERO */
+.hero{
+  min-height:92vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:center;padding:80px 40px 60px;
+  border-bottom:1px solid var(--border);gap:60px;
+  position:relative;overflow:hidden;
+}
+.hero-ornament{
+  position:absolute;right:-80px;top:50%;transform:translateY(-50%);
+  width:500px;height:500px;opacity:0.05;pointer-events:none;z-index:0;
+}
+.hero>div{position:relative;z-index:1;}
+.hero-eyebrow{
+  font-family:var(--ui);font-size:10px;letter-spacing:0.22em;text-transform:uppercase;
+  color:var(--sienna);margin-bottom:20px;display:flex;align-items:center;gap:10px;
+}
+.hero-eyebrow::before{content:'';display:block;width:32px;height:1px;background:var(--sienna);}
+.hero h1{
+  font-family:var(--display);font-size:clamp(52px,7vw,88px);font-weight:400;
+  line-height:1.0;letter-spacing:-0.02em;color:var(--brown);margin-bottom:12px;
+}
+.hero h1 em{font-style:italic;color:var(--sienna);}
+.hero-sub{font-family:var(--ui);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--brown3);margin-bottom:24px;}
+.hero p{font-family:var(--body);font-size:16px;color:var(--brown2);max-width:360px;line-height:1.85;margin-bottom:40px;}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;}
+.btn-primary{
+  background:var(--sienna);color:var(--cream);border:none;
+  font-family:var(--ui);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;
+  padding:13px 28px;cursor:pointer;transition:background 0.2s;
+}
+.btn-primary:hover{background:var(--brown);}
+.btn-outline{
+  background:none;color:var(--brown2);border:1px solid var(--border2);
+  font-family:var(--ui);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;
+  padding:12px 24px;cursor:pointer;transition:all 0.2s;
+}
+.btn-outline:hover{background:var(--brown);color:var(--cream);border-color:var(--brown);}
+.hero-image-frame{aspect-ratio:4/5;overflow:hidden;border:1px solid var(--border);position:relative;}
+.hero-image-frame img{width:100%;height:100%;object-fit:cover;filter:sepia(0.2) contrast(1.05);transition:transform 0.8s;}
+.hero-image-frame:hover img{transform:scale(1.04);}
+.hero-image-caption{
+  position:absolute;bottom:0;left:0;right:0;padding:20px 16px 14px;
+  background:linear-gradient(transparent,rgba(44,31,14,0.55));
+  font-family:var(--ui);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(245,239,228,0.8);
+}
+
+/* SECTIONS */
+.section{padding:72px 40px;border-bottom:1px solid var(--border);}
+.section-eyebrow{
+  font-family:var(--ui);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--sienna);margin-bottom:10px;display:flex;align-items:center;gap:10px;
+}
+.section-eyebrow::before{content:'';display:block;width:24px;height:1px;background:var(--sienna);}
+.section-title{font-family:var(--display);font-size:clamp(28px,3.5vw,42px);font-weight:400;color:var(--brown);line-height:1.15;letter-spacing:-0.01em;}
+.section-title em{font-style:italic;}
+
+/* CATEGORIES */
+.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:36px;}
+.cat-card{overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:border-color 0.3s;}
+.cat-card:hover{border-color:var(--brown3);}
+.cat-card:hover .cat-img{transform:scale(1.04);}
+.cat-card:hover .cat-arrow{transform:translateX(6px);}
+.cat-img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;transition:transform 0.6s;filter:sepia(0.15) contrast(1.05) brightness(0.92);}
+.cat-body{padding:24px 28px;background:var(--cream);}
+.cat-tag{font-family:var(--ui);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--brown3);margin-bottom:8px;}
+.cat-name{font-family:var(--display);font-size:24px;font-weight:400;color:var(--brown);margin-bottom:6px;}
+.cat-desc{font-size:14px;color:var(--brown2);line-height:1.7;}
+.cat-footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px;}
+.cat-count{font-family:var(--ui);font-size:10px;letter-spacing:0.08em;color:var(--brown3);}
+.cat-arrow{font-family:var(--ui);font-size:11px;letter-spacing:0.08em;color:var(--sienna);transition:transform 0.2s;}
+
+/* PROD GRID */
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1px;background:var(--border);}
+.prod-card{background:var(--cream);cursor:pointer;overflow:hidden;transition:background 0.2s;}
+.prod-card:hover{background:var(--cream2);}
+.prod-card:hover .prod-img{transform:scale(1.05);}
+.prod-thumb{aspect-ratio:1;overflow:hidden;position:relative;}
+.prod-img{width:100%;height:100%;object-fit:cover;display:block;filter:sepia(0.1) contrast(1.05);transition:transform 0.5s;}
+.prod-fallback{width:100%;height:100%;display:none;align-items:center;justify-content:center;background:var(--cream2);font-size:36px;color:var(--parchment);}
+.prod-info{padding:14px 16px 18px;}
+.prod-name{font-family:var(--display);font-size:16px;font-weight:400;color:var(--brown);margin-bottom:3px;line-height:1.3;}
+.prod-fmt{font-family:var(--ui);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--brown3);margin-bottom:12px;}
+.prod-bottom{display:flex;align-items:center;justify-content:space-between;}
+.prod-price{font-family:var(--display);font-size:17px;color:var(--sienna);}
+.prod-view{font-family:var(--ui);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);border:1px solid var(--border);padding:4px 10px;background:none;cursor:pointer;transition:all 0.2s;}
+.prod-view:hover{background:var(--brown);color:var(--cream);border-color:var(--brown);}
+.no-results{text-align:center;padding:64px 0;color:var(--brown3);font-size:14px;font-family:var(--ui);letter-spacing:0.08em;}
+
+/* COLLECTION PAGE */
+.collection-page{padding:52px 40px;}
+.breadcrumb{display:flex;align-items:center;gap:8px;margin-bottom:32px;font-family:var(--ui);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);}
+.breadcrumb span{cursor:pointer;transition:color 0.2s;}
+.breadcrumb span:hover{color:var(--brown);}
+.breadcrumb .sep{color:var(--parchment);cursor:default;}
+.breadcrumb .current{color:var(--brown2);cursor:default;}
+.collection-title{font-family:var(--display);font-size:38px;font-weight:400;color:var(--brown);margin-bottom:6px;letter-spacing:-0.01em;}
+.collection-sub{font-family:var(--ui);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--brown3);margin-bottom:28px;}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:28px;}
+.search-wrap input{
+  width:100%;background:var(--cream2);border:1px solid var(--border);
+  color:var(--brown);font-family:var(--ui);font-size:13px;font-weight:300;
+  letter-spacing:0.04em;padding:11px 36px 11px 16px;outline:none;transition:border-color 0.2s;
+}
+.search-wrap input::placeholder{color:var(--parchment);}
+.search-wrap input:focus{border-color:var(--brown3);}
+.search-clear{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--brown3);cursor:pointer;font-size:14px;display:none;}
+.search-clear.show{display:block;}
+
+/* CART BAR */
+.cart-bar{display:none;align-items:center;justify-content:space-between;padding:14px 20px;margin-top:20px;border:1px solid var(--border2);background:var(--cream2);}
+.cart-bar.show{display:flex;}
+.cart-bar-info{font-family:var(--ui);font-size:11px;letter-spacing:0.06em;color:var(--brown2);}
+.cart-bar-info strong{color:var(--brown);font-weight:500;}
+.cart-bar-btns{display:flex;gap:8px;}
+.bar-ghost{background:none;border:1px solid var(--border2);color:var(--brown2);font-family:var(--ui);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:7px 14px;cursor:pointer;transition:all 0.2s;}
+.bar-ghost:hover{background:var(--brown2);color:var(--cream);}
+.bar-primary{background:var(--sienna);color:var(--cream);border:none;font-family:var(--ui);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;padding:7px 16px;cursor:pointer;transition:background 0.2s;}
+.bar-primary:hover{background:var(--brown);}
+
+/* DETAIL */
+.detail-page{padding:52px 40px;}
+.detail-layout{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start;}
+.detail-img-main{aspect-ratio:1;overflow:hidden;border:1px solid var(--border);}
+.detail-img-main img{width:100%;height:100%;object-fit:cover;filter:sepia(0.1) contrast(1.05);display:block;}
+.detail-img-fallback{width:100%;height:100%;display:none;align-items:center;justify-content:center;background:var(--cream2);font-size:72px;color:var(--parchment);}
+.detail-cat{font-family:var(--ui);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--sienna);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.detail-cat::before{content:'';display:block;width:20px;height:1px;background:var(--sienna);}
+.detail-name{font-family:var(--display);font-size:clamp(32px,3vw,44px);font-weight:400;color:var(--brown);line-height:1.1;margin-bottom:8px;letter-spacing:-0.01em;}
+.detail-price{font-family:var(--display);font-size:26px;color:var(--sienna);font-weight:400;margin-bottom:20px;}
+.detail-desc{font-size:16px;color:var(--brown2);line-height:1.85;margin-bottom:24px;border-left:2px solid var(--cream3);padding-left:16px;}
+.detail-meta{border-top:1px solid var(--border);padding-top:20px;margin-bottom:28px;}
+.meta-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.meta-row:last-child{border-bottom:none;}
+.meta-key{font-family:var(--ui);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);}
+.meta-val{color:var(--brown2);}
+.detail-add{width:100%;background:var(--sienna);color:var(--cream);border:none;font-family:var(--ui);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;padding:14px;cursor:pointer;transition:background 0.2s;margin-bottom:10px;}
+.detail-add:hover{background:var(--brown);}
+.detail-add.added{background:var(--sage);cursor:default;}
+.detail-secondary{width:100%;background:none;color:var(--brown2);border:1px solid var(--border2);font-family:var(--ui);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;padding:12px;cursor:pointer;transition:all 0.2s;margin-bottom:8px;}
+.detail-secondary:hover{background:var(--brown);color:var(--cream);border-color:var(--brown);}
+
+/* TRUST */
+.trust-badge{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;margin-top:10px;border:1px solid rgba(155,76,30,0.2);background:rgba(155,76,30,0.04);}
+.trust-icon{font-size:14px;flex-shrink:0;margin-top:2px;color:var(--sienna);opacity:0.7;}
+.trust-text{font-size:13px;color:var(--brown3);line-height:1.65;font-family:var(--ui);font-weight:300;}
+.trust-text strong{color:var(--brown2);font-weight:400;display:block;margin-bottom:2px;font-size:11px;letter-spacing:0.06em;}
+.trust-items{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;}
+.trust-item{font-family:var(--ui);font-size:10px;color:var(--brown3);letter-spacing:0.04em;}
+
+/* CART PAGE */
+.cart-page{padding:52px 40px;max-width:640px;}
+.cart-title{font-family:var(--display);font-size:38px;font-weight:400;color:var(--brown);margin-bottom:36px;letter-spacing:-0.01em;}
+.cart-item{display:flex;align-items:flex-start;gap:16px;padding:20px 0;border-bottom:1px solid var(--border);}
+.cart-item-thumb{width:64px;height:64px;flex-shrink:0;overflow:hidden;border:1px solid var(--border);}
+.cart-item-thumb img{width:100%;height:100%;object-fit:cover;filter:sepia(0.1);display:block;}
+.cart-fallback{width:100%;height:100%;display:none;align-items:center;justify-content:center;background:var(--cream2);font-size:22px;color:var(--parchment);}
+.cart-item-body{flex:1;min-width:0;}
+.cart-item-name{font-family:var(--display);font-size:17px;color:var(--brown);margin-bottom:3px;}
+.cart-item-fmt{font-family:var(--ui);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown3);}
+.cart-item-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;}
+.cart-item-price{font-family:var(--display);font-size:17px;color:var(--sienna);}
+.cart-remove{background:none;border:none;color:var(--parchment);cursor:pointer;font-size:11px;font-family:var(--ui);letter-spacing:0.08em;transition:color 0.2s;}
+.cart-remove:hover{color:var(--sienna);}
+.cart-total-row{display:flex;justify-content:space-between;align-items:baseline;padding:22px 0;border-bottom:1px solid var(--border);margin-bottom:28px;}
+.cart-total-label{font-family:var(--ui);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--brown3);}
+.cart-total-val{font-family:var(--display);font-size:30px;color:var(--sienna);}
+.cart-checkout{width:100%;background:var(--sienna);color:var(--cream);border:none;font-family:var(--ui);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;padding:15px;cursor:pointer;transition:background 0.2s;margin-bottom:10px;}
+.cart-checkout:hover{background:var(--brown);}
+.cart-checkout:disabled{background:var(--parchment);color:var(--cream2);cursor:not-allowed;}
+.cart-empty-msg{padding:72px 0;text-align:center;color:var(--brown3);font-family:var(--display);font-size:22px;font-style:italic;}
+
+/* ORNAMENT DIVIDER */
+.ornament-divider{display:flex;align-items:center;gap:16px;padding:32px 40px 0;opacity:0.2;}
+.ornament-divider::before,.ornament-divider::after{content:'';flex:1;height:1px;background:var(--brown);}
+.ornament-divider span{font-family:var(--display);font-size:18px;color:var(--brown);}
+
+/* FEATURED */
+.featured-section{padding:72px 40px;}
+
+/* FOOTER */
+footer{padding:52px 40px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px;align-items:start;background:var(--cream2);}
+.footer-brand{font-family:var(--display);font-size:26px;color:var(--brown);font-weight:400;margin-bottom:10px;}
+.footer-text{font-size:14px;color:var(--brown2);line-height:1.8;}
+.footer-links{display:flex;flex-direction:column;gap:10px;}
+.footer-links a{font-family:var(--ui);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.footer-links a:hover{color:var(--sienna);}
+.footer-contact-title{font-family:var(--ui);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--brown3);margin-bottom:10px;}
+.footer-contact a{font-family:var(--body);font-size:16px;color:var(--brown2);text-decoration:none;transition:color 0.2s;}
+.footer-contact a:hover{color:var(--sienna);}
+.footer-copy{font-family:var(--ui);font-size:10px;color:var(--parchment);margin-top:40px;letter-spacing:0.06em;}
+
+mark{background:none;color:var(--sienna);font-weight:500;}
+
+@media(max-width:768px){
+  nav{padding:14px 20px;}
+  .nav-links{display:none;}
+  .hamburger{display:flex;}
+  .hero{grid-template-columns:1fr;padding:56px 20px 48px;gap:32px;min-height:auto;}
+  .hero-right{display:none;}
+  .section,.featured-section{padding:52px 20px;}
+  .cat-grid{grid-template-columns:1fr;}
+  .collection-page,.detail-page,.cart-page{padding:36px 20px;}
+  .detail-layout{grid-template-columns:1fr;gap:28px;}
+  footer{grid-template-columns:1fr;gap:28px;padding:40px 20px;}
+  .ornament-divider{padding:24px 20px 0;}
+  .prod-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+}
+</style>
 </head>
 <body>
-  <div class="page-shell">
-    <header class="site-header">
-      <a class="brand" href="#home" aria-label="Tsoda home">
-        <img class="brand-logo" src="Zuragnuud/Logo.png" alt="Tsoda logo">
-      </a>
-      <nav class="site-nav">
-        <a href="#featured">Featured</a>
-        <a href="#categories">Categories</a>
-        <a href="request.html">Request</a>
-        <a href="auth.html">Login</a>
-        <a href="#footer">Contact</a>
-      </nav>
-    </header>
 
-    <main>
-      <section class="hero" id="home">
-        <div class="hero-copy">
-          <p class="eyebrow">Curated Marketplace</p>
-          <h1>Tsoda</h1>
-          <p class="subtitle">Mongolian Digital Heritage</p>
-          <p class="hero-text">
-            Discover premium 3D and 2D design assets inspired by Mongolian ornament,
-            craft, and architectural identity for makers, studios, and collectors.
-          </p>
-          <div class="hero-actions">
-            <a class="hero-button" href="#featured">Explore Collection</a>
-            <div class="asset-shortcuts">
-              <a class="asset-button" href="#zodiac-3d">3D Assets</a>
-              <a class="asset-button" href="#twod-collection">2D Assets</a>
-            </div>
-          </div>
-        </div>
-        <div class="hero-visual" aria-hidden="true">
-          <div class="orb orb-large"></div>
-          <div class="orb orb-small"></div>
-          <div class="hero-card">
-            <span>Featured Archive</span>
-            <strong>Traditional Forms Reimagined</strong>
-          </div>
-        </div>
-      </section>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <pattern id="mongol" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M40 5 L75 40 L40 75 L5 40 Z" fill="none" stroke="currentColor" stroke-width="1"/>
+      <path d="M40 20 L60 40 L40 60 L20 40 Z" fill="none" stroke="currentColor" stroke-width="0.8"/>
+      <circle cx="40" cy="40" r="4" fill="none" stroke="currentColor" stroke-width="0.8"/>
+      <path d="M40 5 L40 20 M75 40 L60 40 M40 75 L40 60 M5 40 L20 40" stroke="currentColor" stroke-width="0.8"/>
+    </pattern>
+  </defs>
+</svg>
 
-      <section class="section" id="featured">
-        <div class="section-heading">
-          <p class="eyebrow">Marketplace Collection</p>
-          <h2>Curated digital assets for modern craft</h2>
-        </div>
-        <div class="product-grid">
-          <article class="product-card">
-            <div class="product-art product-art-relief"></div>
-            <div class="product-content">
-              <h3>Altan Khee Pattern</h3>
-              <p>Traditional ornamental motif prepared for premium digital fabrication workflows.</p>
-              <div class="product-meta">
-                <span>STL / DXF</span>
-                <strong>$12</strong>
-              </div>
-              <a class="product-link" href="product.html">View Details</a>
-            </div>
-          </article>
-          <article class="product-card">
-            <div class="product-art product-art-vector"></div>
-            <div class="product-content">
-              <h3>Steppe Crest Vector</h3>
-              <p>Elegant vector linework for signage, engraving, and decorative brand systems.</p>
-              <div class="product-meta">
-                <span>SVG / DXF</span>
-                <strong>$14</strong>
-              </div>
-            </div>
-          </article>
-          <article class="product-card">
-            <div class="product-art product-art-interior"></div>
-            <div class="product-content">
-              <h3>Heritage Interior Frame</h3>
-              <p>Refined interior concept model with cultural detailing and clean luxury form.</p>
-              <div class="product-meta">
-                <span>SKP</span>
-                <strong>$28</strong>
-              </div>
-            </div>
-          </article>
-          <article class="product-card">
-            <div class="product-art product-art-knot"></div>
-            <div class="product-content">
-              <h3>Eternal Knot Relief</h3>
-              <p>Embossed ornamental surface file ideal for wood, resin, or CNC panel work.</p>
-              <div class="product-meta">
-                <span>STL</span>
-                <strong>$16</strong>
-              </div>
-            </div>
-          </article>
-          <article class="product-card">
-            <div class="product-art product-art-horse"></div>
-            <div class="product-content">
-              <h3>Horse Spirit Emblem</h3>
-              <p>Graphic heritage emblem designed for cutting, etching, and decorative layouts.</p>
-              <div class="product-meta">
-                <span>SVG</span>
-                <strong>$10</strong>
-              </div>
-            </div>
-          </article>
-          <article class="product-card">
-            <div class="product-art product-art-arch"></div>
-            <div class="product-content">
-              <h3>Golden Arch Panel</h3>
-              <p>Architectural ornament built for relief carving and statement interior surfaces.</p>
-              <div class="product-meta">
-                <span>STL / SKP</span>
-                <strong>$22</strong>
-              </div>
-            </div>
-          </article>
-          <article class="product-card">
-            <div class="product-art product-art-motif"></div>
-            <div class="product-content">
-              <h3>Nomad Sun Motif</h3>
-              <p>Balanced geometric composition suited to decorative branding and fabrication.</p>
-              <div class="product-meta">
-                <span>DXF / SVG</span>
-                <strong>$11</strong>
-              </div>
-            </div>
-          </article>
-          <article class="product-card">
-            <div class="product-art product-art-lattice"></div>
-            <div class="product-content">
-              <h3>Palace Lattice Set</h3>
-              <p>Luxury-inspired ornamental lattice files for partitions, panels, and accents.</p>
-              <div class="product-meta">
-                <span>SKP / STL</span>
-                <strong>$26</strong>
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>
+<nav>
+  <a class="logo" href="#" onclick="goto('home');return false;">
+    <img src="Zuragnuud/Logo.png" alt="Tsoda" onerror="this.style.display='none'">
+    <span class="logo-text">Tsoda</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#" onclick="goto('home');return false;">Нүүр</a></li>
+    <li><a href="#" onclick="goto('twod');return false;">2D Vector</a></li>
+    <li><a href="#" onclick="goto('threed');return false;">3D Relief</a></li>
+    <li><a href="request.html">Захиалга</a></li>
+    <li><a href="auth.html">Нэвтрэх</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="cart-toggle" id="cart-toggle-btn" onclick="goto('cart')">
+      <span>Сагс</span>
+      <span class="cart-dot" id="cart-dot">0</span>
+    </button>
+    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
 
-      <section class="section categories-section" id="categories">
-        <div class="section-heading">
-          <p class="eyebrow">Categories</p>
-          <h2>Build with precision across formats</h2>
-        </div>
-        <div class="categories-grid">
-          <article class="category-card">
-            <img class="category-image" src="Zuragnuud/12_jil/Mori.jpg" alt="3D Relief horse model preview">
-            <h3>3D Relief</h3>
-            <p>STL files crafted for embossed surfaces, ornamental panels, and sculptural detail.</p>
-            <span>STL</span>
-          </article>
-          <article class="category-card">
-            <img class="category-image" src="Zuragnuud/2D/Хийморь.png" alt="2D Vector category preview">
-            <h3>2D Vector</h3>
-            <p>Refined linework for laser cutting, signage, engraving, and decorative applications.</p>
-            <span>DXF, SVG</span>
-          </article>
-          <article class="category-card">
-            <img class="category-image" src="Zuragnuud/category-interior.svg" alt="Interior Models category preview">
-            <h3>Interior Models</h3>
-            <p>Spatial assets designed for premium interiors with cultural depth and clean geometry.</p>
-            <span>SKP</span>
-          </article>
-        </div>
-      </section>
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#" onclick="mobileGoto('home')">Нүүр</a>
+  <a href="#" onclick="mobileGoto('twod')">2D Vector</a>
+  <a href="#" onclick="mobileGoto('threed')">3D Relief</a>
+  <a href="request.html" onclick="closeMenu()">Захиалга</a>
+  <a href="auth.html" onclick="closeMenu()">Нэвтрэх</a>
+  <button class="mobile-cart-btn" onclick="mobileGoto('cart')">
+    <span>Сагс</span>
+    <span class="mobile-dot" id="mobile-dot">0</span>
+  </button>
+</div>
 
-      <section class="section twod-section" id="twod-collection">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">2D Collection</p>
-            <h2>Decorative vector-inspired artworks</h2>
-          </div>
-        </div>
-        <div class="twod-grid">
-          <article class="twod-card">
-            <img src="Zuragnuud/2D/Заан.png" alt="Zaан 2D artwork">
-            <h3>Zaан</h3>
-          </article>
-          <article class="twod-card">
-            <img src="Zuragnuud/2D/Тогс.png" alt="Togs 2D artwork">
-            <h3>Togs</h3>
-          </article>
-          <article class="twod-card">
-            <img src="Zuragnuud/2D/Хийморь.png" alt="Hiimori 2D artwork">
-            <h3>Hiimori</h3>
-          </article>
-        </div>
-      </section>
-
-      <section class="section zodiac-section" id="zodiac-3d">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">3D Collection</p>
-            <h2>12 Jil relief models</h2>
-          </div>
-        </div>
-        <div class="zodiac-grid">
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Hulgana.jpg" alt="Hulgana 3D model">
-            <h3>Hulgana</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Vher.jpg" alt="Vher 3D model">
-            <h3>Vher</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Bar.jpg" alt="Bar 3D model">
-            <h3>Bar</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Tuulai.jpg" alt="Tuulai 3D model">
-            <h3>Tuulai</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Luu.jpg" alt="Luu 3D model">
-            <h3>Luu</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Mogoi.jpg" alt="Mogoi 3D model">
-            <h3>Mogoi</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Mori.jpg" alt="Mori 3D model">
-            <h3>Mori</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Honi.jpg" alt="Honi 3D model">
-            <h3>Honi</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Bich.jpg" alt="Bich 3D model">
-            <h3>Bich</h3>
-          </article>
-          <article class="zodiac-card">
-            <img src="Zuragnuud/12_jil/Tahia.jpg" alt="Tahia 3D model">
-            <h3>Tahia</h3>
-          </article>
-        </div>
-      </section>
-
-      <section class="section guardians-section" id="guardians-3d">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Sacred Guardians</p>
-            <h2>4 Huchten relief collection</h2>
-          </div>
-        </div>
-        <div class="guardians-grid">
-          <article class="guardian-card">
-            <img src="Zuragnuud/4 hvchten/Арслан.png" alt="Arslan 3D relief">
-            <h3>Arslan</h3>
-          </article>
-          <article class="guardian-card">
-            <img src="Zuragnuud/4 hvchten/Бар.png" alt="Bar 3D relief">
-            <h3>Bar</h3>
-          </article>
-          <article class="guardian-card">
-            <img src="Zuragnuud/4 hvchten/Луу.png" alt="Luu 3D relief">
-            <h3>Luu</h3>
-          </article>
-          <article class="guardian-card">
-            <img src="Zuragnuud/4 hvchten/Хангарьд.png" alt="Hangarid 3D relief">
-            <h3>Hangarid</h3>
-          </article>
-        </div>
-      </section>
-
-      <section class="section request-cta-section">
-        <div class="request-cta-card">
-          <div>
-            <p class="eyebrow">Custom Work</p>
-            <h2>Need a bespoke cultural design?</h2>
-            <p class="request-cta-text">
-              Submit your concept, references, and budget through the Tsoda request system.
-            </p>
-          </div>
-          <div class="request-cta-actions">
-            <a class="hero-button" href="request.html">Request a Design</a>
-            <a class="product-link" href="requests.html">View Requests</a>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="site-footer" id="footer">
-      <div>
-        <p class="eyebrow">About</p>
-        <p>Tsoda is a curated marketplace for Mongolian traditional digital design assets with a modern luxury sensibility.</p>
+<!-- HOME -->
+<div id="home" class="page active">
+  <div class="hero">
+    <svg class="hero-ornament" viewBox="0 0 480 480">
+      <rect width="480" height="480" fill="url(#mongol)" style="color:var(--brown)"/>
+    </svg>
+    <div>
+      <div class="hero-eyebrow">Mongolian Digital Heritage</div>
+      <h1>Tsoda<br><em>Archive</em></h1>
+      <div class="hero-sub">Traditional Forms · Digital Craft</div>
+      <p>Монгол уламжлалт угалз, гар урлал, архитектурын мөн чанараас сэдэвлэсэн тоон дизайны эх сурвалж.</p>
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="document.getElementById('cat-anchor').scrollIntoView({behavior:'smooth'})">Цуглуулга харах</button>
+        <button class="btn-outline" onclick="goto('threed')">3D Relief</button>
+        <button class="btn-outline" onclick="goto('twod')">2D Vector</button>
       </div>
-      <div>
-        <p class="eyebrow">Contact</p>
-        <a href="mailto:hello@tsoda.mn">hello@tsoda.mn</a>
+    </div>
+    <div>
+      <div class="hero-image-frame">
+        <img src="Zuragnuud/12_jil/Mori.jpg" alt="Mongolian 3D Relief">
+        <div class="hero-image-caption">Mori Relief — STL · 3D Collection</div>
       </div>
-    </footer>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <div class="section" id="cat-anchor">
+    <div class="section-eyebrow">Ангилал</div>
+    <div class="section-title">Форматаа <em>сонгоно уу</em></div>
+    <div class="cat-grid">
+      <div class="cat-card" onclick="goto('twod')">
+        <img class="cat-img" src="Zuragnuud/2D/Хийморь.png" alt="2D Vector">
+        <div class="cat-body">
+          <div class="cat-tag">SVG · DXF</div>
+          <div class="cat-name">2D Vector</div>
+          <div class="cat-desc">Лазер зүсэлт, хэвлэл, брэнд дизайнд зориулсан уламжлалт угалзны векторт зураг.</div>
+          <div class="cat-footer"><span class="cat-count">6 бараа</span><span class="cat-arrow">Харах →</span></div>
+        </div>
+      </div>
+      <div class="cat-card" onclick="goto('threed')">
+        <img class="cat-img" src="Zuragnuud/12_jil/Mori.jpg" alt="3D Relief">
+        <div class="cat-body">
+          <div class="cat-tag">STL · SKP</div>
+          <div class="cat-name">3D Relief</div>
+          <div class="cat-desc">CNC, 3D хэвлэл, дотоод засалд зориулсан тайрдмал рельеф загварууд.</div>
+          <div class="cat-footer"><span class="cat-count">6 бараа</span><span class="cat-arrow">Харах →</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ornament-divider"><span>✦</span></div>
+
+  <div class="featured-section">
+    <div class="section-eyebrow">Онцлох</div>
+    <div class="section-title">Сонгомол <em>цуглуулга</em></div>
+    <div class="prod-grid" id="home-featured" style="margin-top:32px"></div>
+  </div>
+
+  <footer>
+    <div>
+      <div class="footer-brand">Tsoda</div>
+      <p class="footer-text">Монгол уламжлалт дижитал дизайны эх сурвалж — орчин үеийн гар урчуудад зориулав.</p>
+      <p class="footer-copy">© 2025 Tsoda</p>
+    </div>
+    <div class="footer-links">
+      <a href="#" onclick="goto('twod');return false;">2D Vector</a>
+      <a href="#" onclick="goto('threed');return false;">3D Relief</a>
+      <a href="request.html">Захиалга өгөх</a>
+      <a href="auth.html">Нэвтрэх</a>
+    </div>
+    <div class="footer-contact">
+      <div class="footer-contact-title">Холбоо барих</div>
+      <a href="mailto:hello@tsoda.mn">hello@tsoda.mn</a>
+    </div>
+  </footer>
+</div>
+
+<!-- 2D -->
+<div id="twod" class="page">
+  <div class="collection-page">
+    <div class="breadcrumb"><span onclick="goto('home')">Нүүр</span><span class="sep">›</span><span class="current">2D Vector</span></div>
+    <div class="collection-title">2D Vector</div>
+    <div class="collection-sub">SVG · DXF — Лазер зүсэлт · Хэвлэл · Брэнд</div>
+    <div class="search-wrap">
+      <input type="text" id="twod-search" placeholder="2D бараанаас хайх..." oninput="filterGrid('twod',this.value)">
+      <button class="search-clear" id="twod-clear" onclick="clearSearch('twod')">✕</button>
+    </div>
+    <div class="prod-grid" id="twod-grid"></div>
+    <div class="no-results" id="twod-noresults" style="display:none">Тохирох бараа олдсонгүй</div>
+    <div class="cart-bar" id="twod-cartbar">
+      <div class="cart-bar-info"><strong id="twod-bar-count">0</strong> бараа · <strong id="twod-bar-total">$0</strong></div>
+      <div class="cart-bar-btns">
+        <button class="bar-ghost" onclick="goto('cart')">Сагс харах</button>
+        <button class="bar-primary" onclick="goto('cart')">Худалдаж авах</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3D -->
+<div id="threed" class="page">
+  <div class="collection-page">
+    <div class="breadcrumb"><span onclick="goto('home')">Нүүр</span><span class="sep">›</span><span class="current">3D Relief</span></div>
+    <div class="collection-title">3D Relief</div>
+    <div class="collection-sub">STL · SKP — CNC · 3D Хэвлэл · Дотоод засал</div>
+    <div class="search-wrap">
+      <input type="text" id="threed-search" placeholder="3D бараанаас хайх..." oninput="filterGrid('threed',this.value)">
+      <button class="search-clear" id="threed-clear" onclick="clearSearch('threed')">✕</button>
+    </div>
+    <div class="prod-grid" id="threed-grid"></div>
+    <div class="no-results" id="threed-noresults" style="display:none">Тохирох бараа олдсонгүй</div>
+    <div class="cart-bar" id="threed-cartbar">
+      <div class="cart-bar-info"><strong id="threed-bar-count">0</strong> бараа · <strong id="threed-bar-total">$0</strong></div>
+      <div class="cart-bar-btns">
+        <button class="bar-ghost" onclick="goto('cart')">Сагс харах</button>
+        <button class="bar-primary" onclick="goto('cart')">Худалдаж авах</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="detail" class="page">
+  <div class="detail-page">
+    <div class="breadcrumb" id="detail-crumb"></div>
+    <div class="detail-layout">
+      <div>
+        <div class="detail-img-main">
+          <img id="detail-img-el" src="" alt="" onerror="this.style.display='none';document.getElementById('detail-img-fallback').style.display='flex'">
+          <div class="detail-img-fallback" id="detail-img-fallback">◈</div>
+        </div>
+      </div>
+      <div>
+        <div id="detail-cat" class="detail-cat"></div>
+        <div id="detail-name" class="detail-name"></div>
+        <div id="detail-price" class="detail-price"></div>
+        <div id="detail-desc" class="detail-desc"></div>
+        <div class="detail-meta" id="detail-meta"></div>
+        <button class="detail-add" id="detail-add-btn" onclick="addFromDetail()">Сагсанд нэмэх</button>
+        <button class="detail-secondary" onclick="buyNow()">Шууд авах — Gumroad</button>
+        <button class="detail-secondary" onclick="goto('cart')">Сагс харах</button>
+        <div class="trust-badge">
+          <span class="trust-icon">🔒</span>
+          <div class="trust-text">
+            <strong>Аюулгүй худалдан авалт</strong>
+            Gumroad-р боловсруулагдсан · Файл шууд имэйлээр · 30 хоногийн баталгаа
+          </div>
+        </div>
+        <div class="trust-items" style="margin-top:10px">
+          <span class="trust-item">↓ Шууд татах</span>
+          <span class="trust-item">✦ Нэг удаагийн төлбөр</span>
+          <span class="trust-item">◎ 30 хоногийн баталгаа</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CART -->
+<div id="cart" class="page">
+  <div class="cart-page">
+    <div class="breadcrumb"><span onclick="goto('home')">Нүүр</span><span class="sep">›</span><span class="current">Сагс</span></div>
+    <div class="cart-title">Таны сагс</div>
+    <div id="cart-items-list"></div>
+    <button class="cart-checkout" id="checkout-btn" onclick="checkout()">Худалдаж авах</button>
+    <div class="trust-badge" style="margin-top:0">
+      <span class="trust-icon">🔒</span>
+      <div class="trust-text">
+        <strong>Аюулгүй төлбөр — Gumroad</strong>
+        Кредит карт · PayPal · Файл шууд имэйлээр · 30 хоногийн буцаах баталгаа
+      </div>
+    </div>
+    <div class="trust-items" style="margin-top:10px">
+      <span class="trust-item">🔒 SSL</span>
+      <span class="trust-item">✦ Шууд татах</span>
+      <span class="trust-item">◎ 30 хоногийн баталгаа</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const GUMROAD='YOUR_GUMROAD_USERNAME';
+const twodItems=[
+  {id:'t1',cat:'twod',name:'Altan Khee',fmt:'SVG / DXF',price:12,img:'Zuragnuud/2D/Хийморь.png',gumroad:'altan-khee',desc:'Монгол уламжлалт угалзан хээнээс сэдэвлэсэн векторт зураг. Лазер зүсэлт, хэвлэл болон брэнд дизайнд тохиромжтой.',use:'Лазер зүсэлт, хэвлэл',size:'A4 / Scalable',layer:'3 давхарга'},
+  {id:'t2',cat:'twod',name:'Steppe Crest',fmt:'SVG / DXF',price:14,img:'Zuragnuud/2D/Тогс.png',gumroad:'steppe-crest',desc:'Тал нутгийн уламжлалт дүрслэлийг орчин үеийн векторт хэлбэрт оруулсан. Лого, тэмдэг, ламинатад.',use:'Лого, тэмдэг',size:'Scalable',layer:'2 давхарга'},
+  {id:'t3',cat:'twod',name:'Horse Spirit',fmt:'SVG',price:10,img:'Zuragnuud/2D/Заан.png',gumroad:'horse-spirit',desc:'Монгол морины уламжлалт дүрслэл. Декоратив хэвлэл болон зүсэлтэд тохиромжтой шугаман зураг.',use:'Хэвлэл, декор',size:'Scalable',layer:'1 давхарга'},
+  {id:'t4',cat:'twod',name:'Nomad Sun',fmt:'DXF / SVG',price:11,img:'Zuragnuud/2D/Хийморь.png',gumroad:'nomad-sun',desc:'Нүүдэлчдийн нарны тэмдэглэгээнээс сэдэвлэсэн тэгш хэмт геометр зураг.',use:'CNC, лазер',size:'Scalable',layer:'2 давхарга'},
+  {id:'t5',cat:'twod',name:'Hiimori',fmt:'SVG',price:13,img:'Zuragnuud/2D/Хийморь.png',gumroad:'hiimori',desc:'Хийморийн уламжлалт тэмдэглэгээ. Брэнд болон ёслолын хэрэглэгдэхүүний дизайнд.',use:'Брэнд, ёслол',size:'Scalable',layer:'2 давхарга'},
+  {id:'t6',cat:'twod',name:'Eternal Knot',fmt:'SVG / DXF',price:9,img:'Zuragnuud/2D/Тогс.png',gumroad:'eternal-knot',desc:'Мөнхийн зангилааны уламжлалт хэв маяг. Эмжээр, чимэглэлийн хэвлэлд.',use:'Эмжээр, чимэглэл',size:'Scalable',layer:'1 давхарга'},
+];
+const threedItems=[
+  {id:'d1',cat:'threed',name:'Eternal Knot Relief',fmt:'STL',price:16,img:'Zuragnuud/12_jil/Hulgana.jpg',gumroad:'eternal-knot-relief',desc:'Мөнхийн зангилааны 3D рельеф загвар. Мод, давирхай болон CNC самбарын чимэглэлд.',use:'CNC, мод боловсруулалт',size:'150×150×8mm',poly:'12,400 полигон'},
+  {id:'d2',cat:'threed',name:'Heritage Frame',fmt:'SKP',price:28,img:'Zuragnuud/12_jil/Bar.jpg',gumroad:'heritage-frame',desc:'Монгол соёлын дэлгэрэнгүй чимэглэлтэй дотоод заслын хүрээний загвар.',use:'Дотоод засал',size:'600×400×20mm',poly:'28,700 полигон'},
+  {id:'d3',cat:'threed',name:'Golden Arch Panel',fmt:'STL / SKP',price:22,img:'Zuragnuud/12_jil/Luu.jpg',gumroad:'golden-arch-panel',desc:'Алтан нумны рельеф панель загвар. Тайрдмал чимэглэл болон дотоод засалд.',use:'Панель, чимэглэл',size:'300×200×12mm',poly:'18,200 полигон'},
+  {id:'d4',cat:'threed',name:'Palace Lattice',fmt:'SKP / STL',price:26,img:'Zuragnuud/12_jil/Mogoi.jpg',gumroad:'palace-lattice',desc:'Ордны торон хэв маягийн рельеф. Хуваалт, панель болон дотоод засалд.',use:'Хуваалт, панель',size:'400×400×10mm',poly:'22,500 полигон'},
+  {id:'d5',cat:'threed',name:'Mori Relief',fmt:'STL',price:18,img:'Zuragnuud/12_jil/Mori.jpg',gumroad:'mori-relief',desc:'Монгол морины рельеф загвар. 3D хэвлэл болон гар урлалын шавар дардасд.',use:'3D хэвлэл, шавар',size:'120×120×10mm',poly:'9,800 полигон'},
+  {id:'d6',cat:'threed',name:'Arslan Guard',fmt:'STL',price:20,img:'Zuragnuud/4 hvchten/Арслан.png',gumroad:'arslan-guard',desc:'Дөрвөн хүчтний нэг Арслангийн хамгаалагчийн рельеф. Декоратив болон архитектурын чимэглэлд.',use:'Декор, архитектур',size:'160×160×14mm',poly:'14,600 полигон'},
+];
+const allItems=[...twodItems,...threedItems];
+let cart={};let currentDetail=null;
+
+function hl(t,q){if(!q)return t;const r=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return t.replace(r,'<mark>$1</mark>');}
+function makeCards(items,q){return items.map(p=>`<div class="prod-card" onclick="openDetail('${p.id}')"><div class="prod-thumb"><img class="prod-img" src="${p.img}" alt="${p.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="prod-fallback">◈</div></div><div class="prod-info"><div class="prod-name">${hl(p.name,q)}</div><div class="prod-fmt">${p.fmt}</div><div class="prod-bottom"><span class="prod-price">$${p.price}</span><button class="prod-view">Харах</button></div></div></div>`).join('');}
+function renderGrids(){document.getElementById('twod-grid').innerHTML=makeCards(twodItems,'');document.getElementById('threed-grid').innerHTML=makeCards(threedItems,'');document.getElementById('home-featured').innerHTML=makeCards([...threedItems.slice(0,3),...twodItems.slice(0,3)],'');}
+function filterGrid(cat,q){const items=cat==='twod'?twodItems:threedItems;const q2=q.trim().toLowerCase();const f=q2?items.filter(p=>p.name.toLowerCase().includes(q2)||p.fmt.toLowerCase().includes(q2)||p.use.toLowerCase().includes(q2)):items;document.getElementById(cat+'-grid').innerHTML=makeCards(f,q2);document.getElementById(cat+'-noresults').style.display=f.length?'none':'block';document.getElementById(cat+'-clear').classList.toggle('show',!!q);}
+function clearSearch(cat){document.getElementById(cat+'-search').value='';filterGrid(cat,'');}
+
+function openDetail(id){
+  const p=allItems.find(x=>x.id===id);if(!p)return;currentDetail=p;
+  const cl=p.cat==='twod'?'2D Vector':'3D Relief';
+  document.getElementById('detail-crumb').innerHTML=`<span onclick="goto('home')">Нүүр</span><span class="sep">›</span><span onclick="goto('${p.cat}')">${cl}</span><span class="sep">›</span><span class="current">${p.name}</span>`;
+  const img=document.getElementById('detail-img-el');const fb=document.getElementById('detail-img-fallback');
+  img.src=p.img;img.alt=p.name;img.style.display='block';fb.style.display='none';
+  document.getElementById('detail-cat').textContent=cl;
+  document.getElementById('detail-name').textContent=p.name;
+  document.getElementById('detail-price').textContent='$'+p.price;
+  document.getElementById('detail-desc').textContent=p.desc;
+  const is3=p.cat==='threed';
+  document.getElementById('detail-meta').innerHTML=`<div class="meta-row"><span class="meta-key">Файлын төрөл</span><span class="meta-val">${p.fmt}</span></div><div class="meta-row"><span class="meta-key">Хэрэглээ</span><span class="meta-val">${p.use}</span></div><div class="meta-row"><span class="meta-key">Хэмжээ</span><span class="meta-val">${p.size}</span></div><div class="meta-row"><span class="meta-key">${is3?'Полигон':'Давхарга'}</span><span class="meta-val">${is3?p.poly:p.layer}</span></div>`;
+  const btn=document.getElementById('detail-add-btn');btn.textContent=cart[id]?'✓ Нэмсэн':'Сагсанд нэмэх';btn.className='detail-add'+(cart[id]?' added':'');
+  goto('detail');
+}
+
+function addFromDetail(){if(!currentDetail)return;const p=currentDetail;cart[p.id]=cart[p.id]?{...cart[p.id],qty:cart[p.id].qty+1}:{...p,qty:1};const btn=document.getElementById('detail-add-btn');btn.textContent='✓ Нэмсэн';btn.className='detail-add added';updateCartUI();}
+function removeItem(id){delete cart[id];updateCartUI();renderCartPage();}
+
+function updateCartUI(){
+  const items=Object.values(cart);const count=items.reduce((s,i)=>s+i.qty,0);const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+  const dot=document.getElementById('cart-dot');const prev=parseInt(dot.textContent)||0;
+  dot.textContent=count;dot.classList.toggle('visible',count>0);
+  document.getElementById('cart-toggle-btn').classList.toggle('has-items',count>0);
+  if(count>prev){dot.classList.remove('pop');void dot.offsetWidth;dot.classList.add('pop');setTimeout(()=>dot.classList.remove('pop'),400);}
+  const md=document.getElementById('mobile-dot');md.textContent=count;md.classList.toggle('visible',count>0);
+  ['twod','threed'].forEach(k=>{document.getElementById(k+'-bar-count').textContent=count;document.getElementById(k+'-bar-total').textContent='$'+total;document.getElementById(k+'-cartbar').classList.toggle('show',count>0);});
+}
+
+function renderCartPage(){
+  const items=Object.values(cart);const total=items.reduce((s,i)=>s+i.price*i.qty,0);
+  const el=document.getElementById('cart-items-list');const btn=document.getElementById('checkout-btn');
+  if(!items.length){el.innerHTML='<div class="cart-empty-msg">Сагс хоосон байна</div>';btn.disabled=true;return;}
+  btn.disabled=false;
+  el.innerHTML=items.map(i=>`<div class="cart-item"><div class="cart-item-thumb"><img src="${i.img}" alt="${i.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="cart-fallback">◈</div></div><div class="cart-item-body"><div class="cart-item-name">${i.name}${i.qty>1?' × '+i.qty:''}</div><div class="cart-item-fmt">${i.fmt}</div></div><div class="cart-item-right"><span class="cart-item-price">$${i.price*i.qty}</span><button class="cart-remove" onclick="removeItem('${i.id}')">Устгах</button></div></div>`).join('')+`<div class="cart-total-row"><span class="cart-total-label">Нийт дүн</span><span class="cart-total-val">$${total}</span></div>`;
+}
+
+function buyNow(){if(!currentDetail)return;const a=document.createElement('a');a.href=`https://${GUMROAD}.gumroad.com/l/${currentDetail.gumroad}`;a.className='gumroad-button';a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1000);}
+function checkout(){const items=Object.values(cart);if(!items.length)return;items.forEach((p,i)=>{setTimeout(()=>{const a=document.createElement('a');a.href=`https://${GUMROAD}.gumroad.com/l/${p.gumroad}`;a.className='gumroad-button';a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1000);},i*600);});}
+function goto(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(page).classList.add('active');window.scrollTo(0,0);if(page==='cart')renderCartPage();}
+function toggleMenu(){const m=document.getElementById('mobile-menu');const b=document.getElementById('hamburger');const o=m.classList.contains('open');m.classList.toggle('open',!o);b.classList.toggle('open',!o);document.body.style.overflow=o?'':'hidden';}
+function closeMenu(){document.getElementById('mobile-menu').classList.remove('open');document.getElementById('hamburger').classList.remove('open');document.body.style.overflow='';}
+function mobileGoto(page){closeMenu();goto(page);}
+
+renderGrids();
+</script>
 </body>
 </html>
