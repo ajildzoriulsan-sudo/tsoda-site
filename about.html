@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Бидний тухай | Tsoda</title>
+<meta name="description" content="Tsoda — Монгол уламжлалт угалз, рельеф загварыг орчин үеийн тоон хэлбэрт оруулж, дэлхийн гар урчуудад хүргэх зорилготой дижитал архив.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=EB+Garamond:wght@400;500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#f7f3ee; --cream2:#ede7dc; --cream3:#e2d9cc; --parchment:#cfc3b0;
+  --brown:#1a1108; --brown2:#3d2b18; --brown3:#7a5c38;
+  --sienna:#8b3a18; --gold:#b07d2a;
+  --border:rgba(26,17,8,0.1); --border2:rgba(26,17,8,0.2);
+  --display:'Playfair Display',Georgia,serif;
+  --body:'EB Garamond',Georgia,serif;
+  --ui:'Jost',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{background:var(--cream);color:var(--brown);font-family:var(--body);font-size:17px;line-height:1.75;min-height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg transform='translate(40,40)' fill='none' stroke='%231a1108' stroke-width='0.4' opacity='0.06'%3E%3Cpath d='M-8,-14 C-10,-12 -12,-8 -12,-4 C-12,0 -10,4 -8,6 C-6,8 -4,10 0,10 C4,10 6,8 8,6 C10,4 12,0 12,-4 C12,-8 10,-12 8,-14 C6,-16 4,-17 0,-17 C-4,-17 -6,-16 -8,-14 Z'/%3E%3Cpath d='M-12,-4 C-14,-2 -15,0 -15,3 C-15,6 -14,8 -12,9 C-10,10 -8,10 -8,6'/%3E%3Cpath d='M12,-4 C14,-2 15,0 15,3 C15,6 14,8 12,9 C10,10 8,10 8,6'/%3E%3Cpath d='M-8,6 C-10,8 -11,10 -10,13 C-9,16 -6,17 0,17 C6,17 9,16 10,13 C11,10 10,8 8,6'/%3E%3C/g%3E%3C/svg%3E");background-size:80px 80px;}
+body>*{position:relative;z-index:1;}
+
+nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:18px 40px;background:rgba(247,243,238,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo img{height:28px;}
+.logo-text{font-family:var(--display);font-size:20px;font-weight:500;color:var(--brown);letter-spacing:0.04em;}
+.nav-links{display:flex;align-items:center;gap:28px;list-style:none;}
+.nav-links a{font-family:var(--ui);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.nav-links a:hover{color:var(--brown);}
+.nav-links a.active{color:var(--sienna);}
+
+/* HERO */
+.about-hero{padding:80px 40px 64px;border-bottom:1px solid var(--border);max-width:860px;}
+.eyebrow{font-family:var(--ui);font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--sienna);margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.eyebrow::before{content:'';display:block;width:32px;height:1px;background:var(--sienna);}
+.about-hero h1{font-family:var(--display);font-size:clamp(42px,6vw,72px);font-weight:400;line-height:1.05;letter-spacing:-0.02em;color:var(--brown);margin-bottom:20px;}
+.about-hero h1 em{font-style:italic;color:var(--sienna);}
+.about-hero .lead{font-size:19px;color:var(--brown2);max-width:560px;line-height:1.85;}
+
+/* CONTENT */
+.about-body{max-width:860px;padding:0 40px;}
+
+.about-section{padding:64px 0;border-bottom:1px solid var(--border);}
+.about-section:last-of-type{border-bottom:none;}
+
+.about-section-label{font-family:var(--ui);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--sienna);margin-bottom:20px;}
+.about-section h2{font-family:var(--display);font-size:clamp(26px,3vw,38px);font-weight:400;color:var(--brown);line-height:1.2;margin-bottom:24px;letter-spacing:-0.01em;}
+.about-section h2 em{font-style:italic;}
+.about-section p{font-size:17px;color:var(--brown2);line-height:1.9;margin-bottom:20px;max-width:640px;}
+.about-section p:last-child{margin-bottom:0;}
+
+/* TWO-COL */
+.about-two{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;}
+.about-two .about-section-label{margin-bottom:12px;}
+
+/* VALUES */
+.values-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;margin-top:8px;}
+.value-item{}
+.value-num{font-family:var(--display);font-size:40px;font-weight:400;font-style:italic;color:var(--parchment);margin-bottom:8px;line-height:1;}
+.value-title{font-family:var(--ui);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--brown);margin-bottom:8px;}
+.value-desc{font-size:15px;color:var(--brown2);line-height:1.75;}
+
+/* FORMATS */
+.format-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px;}
+.format-card{border:1px solid var(--border);padding:28px;background:var(--cream2);}
+.format-tag{font-family:var(--ui);font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--sienna);margin-bottom:8px;}
+.format-name{font-family:var(--display);font-size:22px;font-weight:400;color:var(--brown);margin-bottom:6px;}
+.format-desc{font-size:14px;color:var(--brown2);line-height:1.7;margin-bottom:14px;}
+.format-files{font-family:var(--ui);font-size:10px;letter-spacing:0.1em;color:var(--brown3);}
+
+/* CREATOR */
+.creator-card{display:flex;align-items:flex-start;gap:32px;padding:40px;background:var(--cream2);border:1px solid var(--border);}
+.creator-avatar{width:80px;height:80px;border-radius:50%;overflow:hidden;flex-shrink:0;border:1px solid var(--border2);background:var(--cream3);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;font-style:italic;color:var(--parchment);}
+.creator-name{font-family:var(--display);font-size:22px;font-weight:400;color:var(--brown);margin-bottom:4px;}
+.creator-role{font-family:var(--ui);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--sienna);margin-bottom:14px;}
+.creator-bio{font-size:15px;color:var(--brown2);line-height:1.8;}
+
+/* CTA */
+.about-cta{background:var(--brown);padding:56px 40px;display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap;}
+.cta-text h3{font-family:var(--display);font-size:clamp(24px,3vw,36px);font-weight:400;font-style:italic;color:var(--cream);margin-bottom:8px;}
+.cta-text p{font-size:15px;color:var(--parchment);max-width:440px;line-height:1.75;}
+.cta-btns{display:flex;gap:12px;flex-wrap:wrap;}
+.btn-cream{background:var(--cream);color:var(--brown);border:none;font-family:var(--ui);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;padding:13px 28px;cursor:pointer;text-decoration:none;display:inline-block;transition:background 0.2s;}
+.btn-cream:hover{background:var(--cream2);}
+.btn-ghost-cream{background:none;color:var(--cream);border:1px solid rgba(247,243,238,0.3);font-family:var(--ui);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;padding:12px 24px;text-decoration:none;display:inline-block;transition:all 0.2s;}
+.btn-ghost-cream:hover{border-color:var(--cream);background:rgba(247,243,238,0.08);}
+
+footer{padding:32px 40px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--cream2);}
+.footer-brand{font-family:var(--display);font-size:20px;color:var(--brown);font-weight:400;}
+.footer-link{font-family:var(--ui);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--brown3);text-decoration:none;transition:color 0.2s;}
+.footer-link:hover{color:var(--sienna);}
+
+@media(max-width:768px){
+  nav{padding:14px 20px;}
+  .nav-links{display:none;}
+  .about-hero{padding:52px 20px 48px;}
+  .about-body{padding:0 20px;}
+  .about-two{grid-template-columns:1fr;}
+  .values-grid{grid-template-columns:1fr;}
+  .format-row{grid-template-columns:1fr;}
+  .creator-card{flex-direction:column;gap:20px;padding:28px 20px;}
+  .about-cta{padding:40px 20px;flex-direction:column;align-items:flex-start;}
+  footer{padding:24px 20px;flex-direction:column;gap:12px;text-align:center;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="index.html">
+    <img src="Zuragnuud/Logo.png" alt="Tsoda" onerror="this.style.display='none'">
+    <span class="logo-text">Tsoda</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="index.html">Нүүр</a></li>
+    <li><a href="index.html#cat-anchor">2D / 3D</a></li>
+    <li><a href="request.html">Захиалга</a></li>
+    <li><a href="about.html" class="active">Бидний тухай</a></li>
+    <li><a href="auth.html">Нэвтрэх</a></li>
+  </ul>
+</nav>
+
+<div class="about-hero">
+  <div class="eyebrow">Бидний тухай</div>
+  <h1>Монгол өв соёлыг<br><em>тоон хэлбэрт</em></h1>
+  <p class="lead">Tsoda бол Монгол уламжлалт угалз, хээ, рельеф загварыг орчин үеийн тоон хэлбэрт оруулж, дэлхийн гар урчуудад хүртээмжтэй болгох зорилготой дижитал архив юм.</p>
+</div>
+
+<div class="about-body">
+
+  <div class="about-section">
+    <div class="about-two">
+      <div>
+        <div class="about-section-label">Яагаад Tsoda вэ</div>
+        <h2>Өвийг <em>амьдруулах</em></h2>
+        <p>Монгол угалз, хэв маяг нь зуун зууны туршид хийц, архитектур, хувцас хунараас гадна өдөр тутмын амьдралын нэг хэсэг байсаар ирсэн. Гэвч энэ мэдлэгийн ихэнх нь цаас дээр, хуучин зураг дотор, ахмад гар урчуудын санамсарт л үлдэж байна.</p>
+        <p>Tsoda эдгээр уламжлалт хэлбэрийг тоон файл болгон хадгалж, орчин үеийн дизайнч, гар урч, архитекторуудад ашиглах боломжтой болгодог. Лазер зүсэлтээс CNC хусуур хүртэл, лого дизайнаас дотоод заслын рельеф хүртэл.</p>
+      </div>
+      <div>
+        <div class="about-section-label">Манай зорилго</div>
+        <h2>Орчин үед <em>холбох</em></h2>
+        <p>Монгол уламжлалт дизайны хэлийг орчин үеийн технологитой нэгтгэх замаар — уламжлалт сэдэл нь орчин үеийн контекстод амьдарч, шинэ бүтээлийн нэг хэсэг болох боломжийг бий болгоно.</p>
+        <p>Манай файлууд нь зөвхөн загвар биш — тус бүр нь ард угсаатны дизайны уламжлалыг дундаа агуулсан тоон эх сурвалж юм.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="about-section">
+    <div class="about-section-label">Манай үнэт зүйлс</div>
+    <h2>Юунд <em>итгэдэг вэ</em></h2>
+    <div class="values-grid">
+      <div class="value-item">
+        <div class="value-num">01</div>
+        <div class="value-title">Жинхэнэ байдал</div>
+        <div class="value-desc">Бүх загвар нь Монгол уламжлалт эх сурвалжид суурилсан — дур зоргоороо зохиосон биш, судалгаанд тулгуурласан.</div>
+      </div>
+      <div class="value-item">
+        <div class="value-num">02</div>
+        <div class="value-title">Мэргэжлийн чанар</div>
+        <div class="value-desc">Векторт файл нь ямар ч масштабт хурц хэвээр байх ба 3D рельеф нь гүйцэтгэлд бэлэн полигон нягтлалтай байдаг.</div>
+      </div>
+      <div class="value-item">
+        <div class="value-num">03</div>
+        <div class="value-title">Шууд хэрэглэх</div>
+        <div class="value-desc">Худалдан авсан даруй имэйлд хүргэгдэх — суурилуулалт, бүртгэл, хүлээлт шаардахгүй.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="about-section">
+    <div class="about-section-label">Бүтээгч</div>
+    <h2>Хэн <em>хийдэг вэ</em></h2>
+    <div class="creator-card">
+      <div class="creator-avatar">T</div>
+      <div>
+        <div class="creator-name">Tsoda Studio</div>
+        <div class="creator-role">Дижитал дизайн · Монгол өв соёл</div>
+        <p class="creator-bio">Tsoda нь Монгол уламжлалт урлагт хайртай, дижитал технологийг эзэмшсэн дизайнерын хувийн төсөл. Монгол угалз, хэв маяг, рельеф загварыг орчин үеийн гар урчдад хүргэхийн тулд жил жилийн судалгаа, туршилтын үр дүнд бий болсон цуглуулга юм.</p>
+        <p class="creator-bio" style="margin-top:12px">Захиалгат ажил, хамтын ажиллагаа болон асуулт хариулт: <a href="mailto:hello@tsoda.mn" style="color:var(--sienna);text-decoration:none;">hello@tsoda.mn</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="about-section">
+    <div class="about-section-label">Файлын формат</div>
+    <h2>Ямар <em>формат байдаг вэ</em></h2>
+    <p>Бүх бараа нь шууд хэрэглэх боломжтой стандарт форматаар ирдэг — тусгай программ шаардахгүй.</p>
+    <div class="format-row">
+      <div class="format-card">
+        <div class="format-tag">Хавтгай загвар</div>
+        <div class="format-name">2D Vector</div>
+        <div class="format-desc">Лазер зүсэлт, хэвлэл, лого болон брэнд дизайнд тохиромжтой уламжлалт угалзны векторт зураг.</div>
+        <div class="format-files">SVG · DXF · Scalable</div>
+      </div>
+      <div class="format-card">
+        <div class="format-tag">Гурван хэмжээст</div>
+        <div class="format-name">3D Relief</div>
+        <div class="format-desc">CNC хусуур, 3D хэвлэл, дотоод засалд зориулсан тайрдмал рельеф загварууд.</div>
+        <div class="format-files">STL · SKP · Print-ready</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="about-cta">
+  <div class="cta-text">
+    <h3>Цуглуулгыг үзэх</h3>
+    <p>2D Vector болон 3D Relief загваруудын дундаас таны төсөлд тохирохыг сонгоорой — эсвэл захиалгат дизайн авахыг хүсвэл холбоо барина уу.</p>
+  </div>
+  <div class="cta-btns">
+    <a href="index.html#cat-anchor" class="btn-cream">Цуглуулга харах</a>
+    <a href="request.html" class="btn-ghost-cream">Захиалга өгөх</a>
+  </div>
+</div>
+
+<footer>
+  <span class="footer-brand">Tsoda</span>
+  <a href="mailto:hello@tsoda.mn" class="footer-link">hello@tsoda.mn</a>
+</footer>
+
+</body>
+</html>

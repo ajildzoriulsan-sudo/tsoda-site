@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -322,6 +322,13 @@ footer{padding:52px 40px;border-top:1px solid var(--border);display:grid;grid-te
 .footer-contact a:hover{color:var(--sienna);}
 .footer-copy{font-family:var(--ui);font-size:10px;color:var(--parchment);margin-top:40px;letter-spacing:0.06em;}
 
+/* DETAIL THUMBNAILS */
+.detail-thumbs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.detail-thumb{width:68px;height:68px;overflow:hidden;border:1px solid var(--border);cursor:pointer;opacity:0.55;transition:opacity 0.2s,border-color 0.2s;flex-shrink:0;}
+.detail-thumb.active{opacity:1;border-color:var(--sienna);}
+.detail-thumb:hover{opacity:1;}
+.detail-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+
 mark{background:none;color:var(--sienna);font-weight:500;}
 
 @media(max-width:768px){
@@ -363,6 +370,7 @@ mark{background:none;color:var(--sienna);font-weight:500;}
     <li><a href="#" onclick="goto('twod');return false;">2D Vector</a></li>
     <li><a href="#" onclick="goto('threed');return false;">3D Relief</a></li>
     <li><a href="request.html">Захиалга</a></li>
+    <li><a href="about.html">Бидний тухай</a></li>
     <li><a href="auth.html">Нэвтрэх</a></li>
   </ul>
   <div class="nav-right">
@@ -381,6 +389,7 @@ mark{background:none;color:var(--sienna);font-weight:500;}
   <a href="#" onclick="mobileGoto('twod')">2D Vector</a>
   <a href="#" onclick="mobileGoto('threed')">3D Relief</a>
   <a href="request.html" onclick="closeMenu()">Захиалга</a>
+  <a href="about.html" onclick="closeMenu()">Бидний тухай</a>
   <a href="auth.html" onclick="closeMenu()">Нэвтрэх</a>
   <button class="mobile-cart-btn" onclick="mobileGoto('cart')">
     <span>Сагс</span>
@@ -413,20 +422,20 @@ mark{background:none;color:var(--sienna);font-weight:500;}
             <div class="carousel-slide-caption">Mori Relief — STL · 3D Collection</div>
           </div>
           <div class="carousel-slide">
-            <img src="Zuragnuud/2D/Хийморь.png" alt="Hiimori 2D">
+            <img src="Zuragnuud/2D/Хийморь.png" alt="Hiimori 2D" loading="lazy">
             <div class="carousel-slide-caption">Hiimori — SVG · 2D Vector</div>
           </div>
           <div class="carousel-slide">
-            <img src="Zuragnuud/4 hvchten/Арслан.png" alt="Arslan">
+            <img src="Zuragnuud/4 hvchten/Арслан.png" alt="Arslan" loading="lazy">
             <div class="carousel-slide-caption">Arslan Guard — STL · 3D Relief</div>
           </div>
           <div class="carousel-slide">
-            <img src="Zuragnuud/2D/Заан.png" alt="Zaan 2D">
-            <div class="carousel-slide-caption">Zaан — SVG · 2D Vector</div>
+            <img src="Zuragnuud/2D/Заан.png" alt="Zaan 2D" loading="lazy">
+            <div class="carousel-slide-caption">Заан — SVG · 2D Vector</div>
           </div>
         </div>
-        <button class="carousel-btn prev" onclick="carouselMove(-1)">‹</button>
-        <button class="carousel-btn next" onclick="carouselMove(1)">›</button>
+        <button class="carousel-btn prev" onclick="carouselMove(-1)" aria-label="Өмнөх слайд">‹</button>
+        <button class="carousel-btn next" onclick="carouselMove(1)" aria-label="Дараагийн слайд">›</button>
       </div>
       <div class="carousel-dots" id="carousel-dots">
         <button class="carousel-dot active" onclick="carouselGoto(0)"></button>
@@ -480,6 +489,7 @@ mark{background:none;color:var(--sienna);font-weight:500;}
       <a href="#" onclick="goto('twod');return false;">2D Vector</a>
       <a href="#" onclick="goto('threed');return false;">3D Relief</a>
       <a href="request.html">Захиалга өгөх</a>
+      <a href="about.html">Бидний тухай</a>
       <a href="auth.html">Нэвтрэх</a>
     </div>
     <div class="footer-contact">
@@ -543,6 +553,7 @@ mark{background:none;color:var(--sienna);font-weight:500;}
           <img id="detail-img-el" src="" alt="" onerror="this.style.display='none';document.getElementById('detail-img-fallback').style.display='flex'">
           <div class="detail-img-fallback" id="detail-img-fallback">◈</div>
         </div>
+        <div class="detail-thumbs" id="detail-thumbs"></div>
       </div>
       <div>
         <div id="detail-cat" class="detail-cat"></div>
@@ -595,29 +606,37 @@ mark{background:none;color:var(--sienna);font-weight:500;}
 <script>
 const GUMROAD='YOUR_GUMROAD_USERNAME';
 const twodItems=[
-  {id:'t1',cat:'twod',name:'Altan Khee',fmt:'SVG / DXF',price:12,img:'Zuragnuud/2D/Хийморь.png',gumroad:'altan-khee',desc:'Монгол уламжлалт угалзан хээнээс сэдэвлэсэн векторт зураг. Лазер зүсэлт, хэвлэл болон брэнд дизайнд тохиромжтой.',use:'Лазер зүсэлт, хэвлэл',size:'A4 / Scalable',layer:'3 давхарга'},
-  {id:'t2',cat:'twod',name:'Steppe Crest',fmt:'SVG / DXF',price:14,img:'Zuragnuud/2D/Тогс.png',gumroad:'steppe-crest',desc:'Тал нутгийн уламжлалт дүрслэлийг орчин үеийн векторт хэлбэрт оруулсан. Лого, тэмдэг, ламинатад.',use:'Лого, тэмдэг',size:'Scalable',layer:'2 давхарга'},
-  {id:'t3',cat:'twod',name:'Horse Spirit',fmt:'SVG',price:10,img:'Zuragnuud/2D/Заан.png',gumroad:'horse-spirit',desc:'Монгол морины уламжлалт дүрслэл. Декоратив хэвлэл болон зүсэлтэд тохиромжтой шугаман зураг.',use:'Хэвлэл, декор',size:'Scalable',layer:'1 давхарга'},
-  {id:'t4',cat:'twod',name:'Nomad Sun',fmt:'DXF / SVG',price:11,img:'Zuragnuud/2D/Хийморь.png',gumroad:'nomad-sun',desc:'Нүүдэлчдийн нарны тэмдэглэгээнээс сэдэвлэсэн тэгш хэмт геометр зураг.',use:'CNC, лазер',size:'Scalable',layer:'2 давхарга'},
-  {id:'t5',cat:'twod',name:'Hiimori',fmt:'SVG',price:13,img:'Zuragnuud/2D/Хийморь.png',gumroad:'hiimori',desc:'Хийморийн уламжлалт тэмдэглэгээ. Брэнд болон ёслолын хэрэглэгдэхүүний дизайнд.',use:'Брэнд, ёслол',size:'Scalable',layer:'2 давхарга'},
-  {id:'t6',cat:'twod',name:'Eternal Knot',fmt:'SVG / DXF',price:9,img:'Zuragnuud/2D/Тогс.png',gumroad:'eternal-knot',desc:'Мөнхийн зангилааны уламжлалт хэв маяг. Эмжээр, чимэглэлийн хэвлэлд.',use:'Эмжээр, чимэглэл',size:'Scalable',layer:'1 давхарга'},
+  {id:'t1',cat:'twod',name:'Altan Khee',fmt:'SVG / DXF',price:12,img:'Zuragnuud/2D/Хийморь.png',imgs:['Zuragnuud/2D/Хийморь.png','Zuragnuud/2D/Тогс.png','Zuragnuud/2D/Заан.png'],gumroad:'altan-khee',desc:'Монгол уламжлалт угалзан хээнээс сэдэвлэсэн векторт зураг. Лазер зүсэлт, хэвлэл болон брэнд дизайнд тохиромжтой.',use:'Лазер зүсэлт, хэвлэл',size:'A4 / Scalable',layer:'3 давхарга'},
+  {id:'t2',cat:'twod',name:'Steppe Crest',fmt:'SVG / DXF',price:14,img:'Zuragnuud/2D/Тогс.png',imgs:['Zuragnuud/2D/Тогс.png','Zuragnuud/2D/Хийморь.png','Zuragnuud/2D/Заан.png'],gumroad:'steppe-crest',desc:'Тал нутгийн уламжлалт дүрслэлийг орчин үеийн векторт хэлбэрт оруулсан. Лого, тэмдэг, ламинатад.',use:'Лого, тэмдэг',size:'Scalable',layer:'2 давхарга'},
+  {id:'t3',cat:'twod',name:'Horse Spirit',fmt:'SVG',price:10,img:'Zuragnuud/2D/Заан.png',imgs:['Zuragnuud/2D/Заан.png','Zuragnuud/2D/Хийморь.png','Zuragnuud/2D/Тогс.png'],gumroad:'horse-spirit',desc:'Монгол морины уламжлалт дүрслэл. Декоратив хэвлэл болон зүсэлтэд тохиромжтой шугаман зураг.',use:'Хэвлэл, декор',size:'Scalable',layer:'1 давхарга'},
+  {id:'t4',cat:'twod',name:'Nomad Sun',fmt:'DXF / SVG',price:11,img:'Zuragnuud/2D/Хийморь.png',imgs:['Zuragnuud/2D/Хийморь.png','Zuragnuud/2D/Заан.png','Zuragnuud/2D/Тогс.png'],gumroad:'nomad-sun',desc:'Нүүдэлчдийн нарны тэмдэглэгээнээс сэдэвлэсэн тэгш хэмт геометр зураг.',use:'CNC, лазер',size:'Scalable',layer:'2 давхарга'},
+  {id:'t5',cat:'twod',name:'Hiimori',fmt:'SVG',price:13,img:'Zuragnuud/2D/Хийморь.png',imgs:['Zuragnuud/2D/Хийморь.png','Zuragnuud/2D/Тогс.png','Zuragnuud/4 hvchten/Хангарьд.png'],gumroad:'hiimori',desc:'Хийморийн уламжлалт тэмдэглэгээ. Брэнд болон ёслолын хэрэглэгдэхүүний дизайнд.',use:'Брэнд, ёслол',size:'Scalable',layer:'2 давхарга'},
+  {id:'t6',cat:'twod',name:'Eternal Knot',fmt:'SVG / DXF',price:9,img:'Zuragnuud/2D/Тогс.png',imgs:['Zuragnuud/2D/Тогс.png','Zuragnuud/2D/Заан.png','Zuragnuud/2D/Хийморь.png'],gumroad:'eternal-knot',desc:'Мөнхийн зангилааны уламжлалт хэв маяг. Эмжээр, чимэглэлийн хэвлэлд.',use:'Эмжээр, чимэглэл',size:'Scalable',layer:'1 давхарга'},
 ];
 const threedItems=[
-  {id:'d1',cat:'threed',name:'Eternal Knot Relief',fmt:'STL',price:16,img:'Zuragnuud/12_jil/Hulgana.jpg',gumroad:'eternal-knot-relief',desc:'Мөнхийн зангилааны 3D рельеф загвар. Мод, давирхай болон CNC самбарын чимэглэлд.',use:'CNC, мод боловсруулалт',size:'150×150×8mm',poly:'12,400 полигон'},
-  {id:'d2',cat:'threed',name:'Heritage Frame',fmt:'SKP',price:28,img:'Zuragnuud/12_jil/Bar.jpg',gumroad:'heritage-frame',desc:'Монгол соёлын дэлгэрэнгүй чимэглэлтэй дотоод заслын хүрээний загвар.',use:'Дотоод засал',size:'600×400×20mm',poly:'28,700 полигон'},
-  {id:'d3',cat:'threed',name:'Golden Arch Panel',fmt:'STL / SKP',price:22,img:'Zuragnuud/12_jil/Luu.jpg',gumroad:'golden-arch-panel',desc:'Алтан нумны рельеф панель загвар. Тайрдмал чимэглэл болон дотоод засалд.',use:'Панель, чимэглэл',size:'300×200×12mm',poly:'18,200 полигон'},
-  {id:'d4',cat:'threed',name:'Palace Lattice',fmt:'SKP / STL',price:26,img:'Zuragnuud/12_jil/Mogoi.jpg',gumroad:'palace-lattice',desc:'Ордны торон хэв маягийн рельеф. Хуваалт, панель болон дотоод засалд.',use:'Хуваалт, панель',size:'400×400×10mm',poly:'22,500 полигон'},
-  {id:'d5',cat:'threed',name:'Mori Relief',fmt:'STL',price:18,img:'Zuragnuud/12_jil/Mori.jpg',gumroad:'mori-relief',desc:'Монгол морины рельеф загвар. 3D хэвлэл болон гар урлалын шавар дардасд.',use:'3D хэвлэл, шавар',size:'120×120×10mm',poly:'9,800 полигон'},
-  {id:'d6',cat:'threed',name:'Arslan Guard',fmt:'STL',price:20,img:'Zuragnuud/4 hvchten/Арслан.png',gumroad:'arslan-guard',desc:'Дөрвөн хүчтний нэг Арслангийн хамгаалагчийн рельеф. Декоратив болон архитектурын чимэглэлд.',use:'Декор, архитектур',size:'160×160×14mm',poly:'14,600 полигон'},
+  {id:'d1',cat:'threed',name:'Eternal Knot Relief',fmt:'STL',price:16,img:'Zuragnuud/12_jil/Hulgana.jpg',imgs:['Zuragnuud/12_jil/Hulgana.jpg','Zuragnuud/12_jil/Bar.jpg','Zuragnuud/12_jil/Tuulai.jpg'],gumroad:'eternal-knot-relief',desc:'Мөнхийн зангилааны 3D рельеф загвар. Мод, давирхай болон CNC самбарын чимэглэлд.',use:'CNC, мод боловсруулалт',size:'150×150×8mm',poly:'12,400 полигон'},
+  {id:'d2',cat:'threed',name:'Heritage Frame',fmt:'SKP',price:28,img:'Zuragnuud/12_jil/Bar.jpg',imgs:['Zuragnuud/12_jil/Bar.jpg','Zuragnuud/12_jil/Vher.jpg','Zuragnuud/12_jil/Mogoi.jpg'],gumroad:'heritage-frame',desc:'Монгол соёлын дэлгэрэнгүй чимэглэлтэй дотоод заслын хүрээний загвар.',use:'Дотоод засал',size:'600×400×20mm',poly:'28,700 полигон'},
+  {id:'d3',cat:'threed',name:'Golden Arch Panel',fmt:'STL / SKP',price:22,img:'Zuragnuud/12_jil/Luu.jpg',imgs:['Zuragnuud/12_jil/Luu.jpg','Zuragnuud/4 hvchten/Луу.png','Zuragnuud/12_jil/Bar.jpg'],gumroad:'golden-arch-panel',desc:'Алтан нумны рельеф панель загвар. Тайрдмал чимэглэл болон дотоод засалд.',use:'Панель, чимэглэл',size:'300×200×12mm',poly:'18,200 полигон'},
+  {id:'d4',cat:'threed',name:'Palace Lattice',fmt:'SKP / STL',price:26,img:'Zuragnuud/12_jil/Mogoi.jpg',imgs:['Zuragnuud/12_jil/Mogoi.jpg','Zuragnuud/12_jil/Honi.jpg','Zuragnuud/12_jil/Luu.jpg'],gumroad:'palace-lattice',desc:'Ордны торон хэв маягийн рельеф. Хуваалт, панель болон дотоод засалд.',use:'Хуваалт, панель',size:'400×400×10mm',poly:'22,500 полигон'},
+  {id:'d5',cat:'threed',name:'Mori Relief',fmt:'STL',price:18,img:'Zuragnuud/12_jil/Mori.jpg',imgs:['Zuragnuud/12_jil/Mori.jpg','Zuragnuud/12_jil/Tahia.jpg','Zuragnuud/12_jil/Hulgana.jpg'],gumroad:'mori-relief',desc:'Монгол морины рельеф загвар. 3D хэвлэл болон гар урлалын шавар дардасд.',use:'3D хэвлэл, шавар',size:'120×120×10mm',poly:'9,800 полигон'},
+  {id:'d6',cat:'threed',name:'Arslan Guard',fmt:'STL',price:20,img:'Zuragnuud/4 hvchten/Арслан.png',imgs:['Zuragnuud/4 hvchten/Арслан.png','Zuragnuud/4 hvchten/Бар.png','Zuragnuud/4 hvchten/Луу.png','Zuragnuud/4 hvchten/Хангарьд.png'],gumroad:'arslan-guard',desc:'Дөрвөн хүчтний нэг Арслангийн хамгаалагчийн рельеф. Декоратив болон архитектурын чимэглэлд.',use:'Декор, архитектур',size:'160×160×14mm',poly:'14,600 полигон'},
 ];
 const allItems=[...twodItems,...threedItems];
 let cart={};let currentDetail=null;
 
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+const filterGrid=debounce(function(cat,q){const items=cat==='twod'?twodItems:threedItems;const q2=q.trim().toLowerCase();const f=q2?items.filter(p=>p.name.toLowerCase().includes(q2)||p.fmt.toLowerCase().includes(q2)||p.use.toLowerCase().includes(q2)):items;document.getElementById(cat+'-grid').innerHTML=makeCards(f,q2);document.getElementById(cat+'-noresults').style.display=f.length?'none':'block';document.getElementById(cat+'-clear').classList.toggle('show',!!q);},280);
 function hl(t,q){if(!q)return t;const r=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return t.replace(r,'<mark>$1</mark>');}
-function makeCards(items,q){return items.map(p=>`<div class="prod-card" onclick="openDetail('${p.id}')"><div class="prod-thumb"><img class="prod-img" src="${p.img}" alt="${p.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="prod-fallback">◈</div></div><div class="prod-info"><div class="prod-name">${hl(p.name,q)}</div><div class="prod-fmt">${p.fmt}</div><div class="prod-bottom"><span class="prod-price">$${p.price}</span><button class="prod-view">Харах</button></div></div></div>`).join('');}
+function makeCards(items,q){return items.map(p=>`<div class="prod-card" onclick="openDetail('${p.id}')"><div class="prod-thumb"><img class="prod-img" src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="prod-fallback">◈</div></div><div class="prod-info"><div class="prod-name">${hl(p.name,q)}</div><div class="prod-fmt">${p.fmt}</div><div class="prod-bottom"><span class="prod-price">$${p.price}</span><button class="prod-view">Харах</button></div></div></div>`).join('');}
 function renderGrids(){document.getElementById('twod-grid').innerHTML=makeCards(twodItems,'');document.getElementById('threed-grid').innerHTML=makeCards(threedItems,'');document.getElementById('home-featured').innerHTML=makeCards([...threedItems.slice(0,3),...twodItems.slice(0,3)],'');}
-function filterGrid(cat,q){const items=cat==='twod'?twodItems:threedItems;const q2=q.trim().toLowerCase();const f=q2?items.filter(p=>p.name.toLowerCase().includes(q2)||p.fmt.toLowerCase().includes(q2)||p.use.toLowerCase().includes(q2)):items;document.getElementById(cat+'-grid').innerHTML=makeCards(f,q2);document.getElementById(cat+'-noresults').style.display=f.length?'none':'block';document.getElementById(cat+'-clear').classList.toggle('show',!!q);}
 function clearSearch(cat){document.getElementById(cat+'-search').value='';filterGrid(cat,'');}
+
+function switchDetailImg(src,alt,el){
+  const img=document.getElementById('detail-img-el');const fb=document.getElementById('detail-img-fallback');
+  img.src=src;img.alt=alt;img.style.display='block';fb.style.display='none';
+  document.querySelectorAll('.detail-thumb').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
 
 function openDetail(id){
   const p=allItems.find(x=>x.id===id);if(!p)return;currentDetail=p;
@@ -632,6 +651,10 @@ function openDetail(id){
   const is3=p.cat==='threed';
   document.getElementById('detail-meta').innerHTML=`<div class="meta-row"><span class="meta-key">Файлын төрөл</span><span class="meta-val">${p.fmt}</span></div><div class="meta-row"><span class="meta-key">Хэрэглээ</span><span class="meta-val">${p.use}</span></div><div class="meta-row"><span class="meta-key">Хэмжээ</span><span class="meta-val">${p.size}</span></div><div class="meta-row"><span class="meta-key">${is3?'Полигон':'Давхарга'}</span><span class="meta-val">${is3?p.poly:p.layer}</span></div>`;
   const btn=document.getElementById('detail-add-btn');btn.textContent=cart[id]?'✓ Нэмсэн':'Сагсанд нэмэх';btn.className='detail-add'+(cart[id]?' added':'');
+  const imgs=p.imgs||[p.img];
+  document.getElementById('detail-thumbs').innerHTML=imgs.length>1
+    ?imgs.map((src,i)=>`<div class="detail-thumb${i===0?' active':''}" onclick="switchDetailImg('${src.replace(/'/g,"\\'")}','${p.name}',this)"><img src="${src}" alt="${p.name} — зураг ${i+1}" loading="lazy"></div>`).join('')
+    :'';
   goto('detail');
 }
 
@@ -651,7 +674,7 @@ function updateCartUI(){
 function renderCartPage(){
   const items=Object.values(cart);const total=items.reduce((s,i)=>s+i.price*i.qty,0);
   const el=document.getElementById('cart-items-list');const btn=document.getElementById('checkout-btn');
-  if(!items.length){el.innerHTML='<div class="cart-empty-msg">Сагс хоосон байна</div>';btn.disabled=true;return;}
+  if(!items.length){el.innerHTML='<div class="cart-empty-msg">Сагс хоосон байна<br><button class="btn-outline" style="font-size:10px;margin-top:20px" onclick="goto(\'twod\')">Цуглуулга харах →</button></div>';btn.disabled=true;return;}
   btn.disabled=false;
   el.innerHTML=items.map(i=>`<div class="cart-item"><div class="cart-item-thumb"><img src="${i.img}" alt="${i.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="cart-fallback">◈</div></div><div class="cart-item-body"><div class="cart-item-name">${i.name}${i.qty>1?' × '+i.qty:''}</div><div class="cart-item-fmt">${i.fmt}</div></div><div class="cart-item-right"><span class="cart-item-price">$${i.price*i.qty}</span><button class="cart-remove" onclick="removeItem('${i.id}')">Устгах</button></div></div>`).join('')+`<div class="cart-total-row"><span class="cart-total-label">Нийт дүн</span><span class="cart-total-val">$${total}</span></div>`;
 }
