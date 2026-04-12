@@ -102,21 +102,21 @@ footer{padding:40px;border-top:1px solid var(--border);display:flex;align-items:
   <p class="page-sub">Таны санаа, лавлах зураг болон төсвийг хуваалцаарай — Монгол уламжлалт дижитал дизайны захиалгыг шуурхай, тодорхой ажлын урсгалаар хүлээн авна.</p>
 
   <div class="form-section">
-    <label class="form-label">Гарчиг</label>
+    <label class="form-label" for="req-title">Гарчиг</label>
     <input type="text" class="form-input" id="req-title" placeholder="Жишээ: Морин хуурын угалзан хээ — STL">
 
-    <label class="form-label">Тайлбар</label>
+    <label class="form-label" for="req-desc">Тайлбар</label>
     <textarea class="form-input" id="req-desc" placeholder="Ямар зориулалттай, ямар хэмжээтэй, ямар файлын формат хэрэгтэй вэ?"></textarea>
 
-    <label class="form-label">Лавлах зураг (заавал биш)</label>
-    <div class="upload-zone" onclick="document.getElementById('req-img').click()">
+    <label class="form-label" for="req-img">Лавлах зураг (заавал биш)</label>
+    <div class="upload-zone" onclick="document.getElementById('req-img').click()" role="button" tabindex="0" aria-label="Зураг оруулах">
       <div class="upload-label">Зураг оруулах</div>
       <div class="upload-sub">PNG, JPG, SVG — дарж сонгоно уу</div>
-      <img class="upload-preview" id="upload-preview">
+      <img class="upload-preview" id="upload-preview" alt="Таны сонгосон лавлах зураг">
     </div>
     <input type="file" id="req-img" accept="image/*" style="display:none" onchange="previewImg(this)">
 
-    <label class="form-label">Төсөв (заавал биш)</label>
+    <label class="form-label" for="req-budget">Төсөв (заавал биш)</label>
     <input type="text" class="form-input" id="req-budget" placeholder="Жишээ: $30–$50">
 
     <button class="submit-btn" onclick="submitRequest()">Захиалга илгээх</button>
@@ -168,16 +168,25 @@ function previewImg(input) {
 
 function submitRequest() {
   const title = document.getElementById('req-title').value.trim();
-  const desc = document.getElementById('req-desc').value.trim();
+  const description = document.getElementById('req-desc').value.trim();
   if (!title) { document.getElementById('req-title').focus(); return; }
-  const req = { id: Date.now(), title, desc, budget: document.getElementById('req-budget').value.trim(), date: new Date().toLocaleDateString('mn-MN') };
-  const requests = JSON.parse(localStorage.getItem('tsoda-requests') || '[]');
+  const req = {
+    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    title,
+    description,
+    budget: document.getElementById('req-budget').value.trim(),
+    status: 'Open',
+    createdAt: new Date().toISOString()
+  };
+  const KEY = 'tsoda-design-requests';
+  const requests = JSON.parse(localStorage.getItem(KEY) || '[]');
   requests.unshift(req);
-  localStorage.setItem('tsoda-requests', JSON.stringify(requests));
+  localStorage.setItem(KEY, JSON.stringify(requests));
   document.getElementById('success-msg').style.display = 'block';
   document.getElementById('req-title').value = '';
   document.getElementById('req-desc').value = '';
   document.getElementById('req-budget').value = '';
+  document.getElementById('req-img').value = '';
   document.getElementById('upload-preview').style.display = 'none';
   window.scrollTo({ top: document.getElementById('success-msg').offsetTop - 100, behavior: 'smooth' });
 }

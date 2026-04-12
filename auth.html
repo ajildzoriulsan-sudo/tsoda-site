@@ -89,27 +89,27 @@ footer{padding:32px 40px;border-top:1px solid var(--border);display:flex;align-i
     <h1 class="auth-title">Tsoda <em>Archive</em></h1>
     <p class="auth-sub">Татаж авсан файл болон захиалгын түүхийг удирдахын тулд нэвтэрнэ үү.</p>
 
-    <div class="tab-row">
-      <button class="tab-btn active" onclick="showTab('login')">Нэвтрэх</button>
-      <button class="tab-btn" onclick="showTab('signup')">Бүртгүүлэх</button>
+    <div class="tab-row" role="tablist">
+      <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-login" id="tab-login" onclick="showTab('login')">Нэвтрэх</button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-signup" id="tab-signup" onclick="showTab('signup')">Бүртгүүлэх</button>
     </div>
 
-    <div class="form-panel active" id="panel-login">
-      <label class="form-label">Имэйл хаяг</label>
-      <input type="email" class="form-input" placeholder="hello@example.com">
-      <label class="form-label">Нууц үг</label>
-      <input type="password" class="form-input" placeholder="••••••••">
+    <div class="form-panel active" id="panel-login" role="tabpanel" aria-labelledby="tab-login">
+      <label class="form-label" for="login-email">Имэйл хаяг</label>
+      <input type="email" id="login-email" class="form-input" placeholder="hello@example.com" autocomplete="email">
+      <label class="form-label" for="login-password">Нууц үг</label>
+      <input type="password" id="login-password" class="form-input" placeholder="••••••••" autocomplete="current-password">
       <button class="auth-btn" onclick="handleAuth('login')">Нэвтрэх</button>
       <p class="form-note">Нууц үгээ мартсан уу? <a href="mailto:hello@tsoda.mn" style="color:var(--sienna);text-decoration:none;">Бидэнтэй холбоо барина уу</a></p>
     </div>
 
-    <div class="form-panel" id="panel-signup">
-      <label class="form-label">Нэр</label>
-      <input type="text" class="form-input" placeholder="Таны нэр">
-      <label class="form-label">Имэйл хаяг</label>
-      <input type="email" class="form-input" placeholder="hello@example.com">
-      <label class="form-label">Нууц үг</label>
-      <input type="password" class="form-input" placeholder="••••••••">
+    <div class="form-panel" id="panel-signup" role="tabpanel" aria-labelledby="tab-signup">
+      <label class="form-label" for="signup-name">Нэр</label>
+      <input type="text" id="signup-name" class="form-input" placeholder="Таны нэр" autocomplete="name">
+      <label class="form-label" for="signup-email">Имэйл хаяг</label>
+      <input type="email" id="signup-email" class="form-input" placeholder="hello@example.com" autocomplete="email">
+      <label class="form-label" for="signup-password">Нууц үг</label>
+      <input type="password" id="signup-password" class="form-input" placeholder="••••••••" autocomplete="new-password">
       <button class="auth-btn" onclick="handleAuth('signup')">Бүртгүүлэх</button>
       <p class="form-note">Бүртгүүлснээр үйлчилгээний нөхцөлийг зөвшөөрч байна.</p>
     </div>
@@ -123,9 +123,14 @@ footer{padding:32px 40px;border-top:1px solid var(--border);display:flex;align-i
 
 <script>
 function showTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='signup')));
-  document.getElementById('panel-login').classList.toggle('active', tab==='login');
-  document.getElementById('panel-signup').classList.toggle('active', tab==='signup');
+  const isLogin = tab === 'login';
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    const active = (i===0 && isLogin) || (i===1 && !isLogin);
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', String(active));
+  });
+  document.getElementById('panel-login').classList.toggle('active', isLogin);
+  document.getElementById('panel-signup').classList.toggle('active', !isLogin);
 }
 function handleAuth(type) {
   alert(type === 'login' ? 'Нэвтрэх систем удахгүй нэмэгдэнэ.' : 'Бүртгэл удахгүй нэмэгдэнэ.');
