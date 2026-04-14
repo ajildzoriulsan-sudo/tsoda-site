@@ -74,10 +74,19 @@ nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-co
 
 /* CREATOR */
 .creator-card{display:flex;align-items:flex-start;gap:32px;padding:40px;background:var(--cream2);border:1px solid var(--border);}
-.creator-avatar{width:80px;height:80px;border-radius:50%;overflow:hidden;flex-shrink:0;border:1px solid var(--border2);background:var(--cream3);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;font-style:italic;color:var(--parchment);}
+.creator-avatar{width:100px;height:100px;border-radius:50%;overflow:hidden;flex-shrink:0;border:1px solid var(--border2);}
+.creator-avatar img{width:100%;height:100%;object-fit:cover;object-position:center top;}
 .creator-name{font-family:var(--display);font-size:22px;font-weight:400;color:var(--brown);margin-bottom:4px;}
 .creator-role{font-family:var(--ui);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--sienna);margin-bottom:14px;}
 .creator-bio{font-size:15px;color:var(--brown2);line-height:1.8;}
+
+.inspiration-card{display:grid;grid-template-columns:280px 1fr;gap:0;border:1px solid var(--border);overflow:hidden;margin-top:32px;}
+.inspiration-img{height:100%;min-height:220px;overflow:hidden;}
+.inspiration-img img{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;filter:brightness(0.95) saturate(0.9);}
+.inspiration-body{padding:32px 36px;background:var(--cream2);display:flex;flex-direction:column;justify-content:center;}
+.inspiration-tag{font-family:var(--ui);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--sienna);margin-bottom:12px;}
+.inspiration-name{font-family:var(--display);font-size:24px;font-weight:400;font-style:italic;color:var(--brown);margin-bottom:12px;}
+.inspiration-quote{font-size:15px;color:var(--brown2);line-height:1.8;border-left:2px solid var(--cream3);padding-left:14px;}
 
 /* CTA */
 .about-cta{background:var(--brown);padding:56px 40px;display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap;}
@@ -103,6 +112,8 @@ footer{padding:32px 40px;border-top:1px solid var(--border);display:flex;align-i
   .values-grid{grid-template-columns:1fr;}
   .format-row{grid-template-columns:1fr;}
   .creator-card{flex-direction:column;gap:20px;padding:28px 20px;}
+  .inspiration-card{grid-template-columns:1fr;}
+  .inspiration-img{min-height:240px;}
   .about-cta{padding:40px 20px;flex-direction:column;align-items:flex-start;}
   footer{padding:24px 20px;flex-direction:column;gap:12px;text-align:center;}
 }
@@ -175,12 +186,25 @@ footer{padding:32px 40px;border-top:1px solid var(--border);display:flex;align-i
     <div class="about-section-label">Бүтээгч</div>
     <h2>Хэн <em>хийдэг вэ</em></h2>
     <div class="creator-card">
-      <div class="creator-avatar">T</div>
+      <div class="creator-avatar">
+        <img src="Zuragnuud/sanj.jpg" alt="Санжаа — Tsoda Studio">
+      </div>
       <div>
-        <div class="creator-name">Tsoda Studio</div>
-        <div class="creator-role">Дижитал дизайн · Монгол өв соёл</div>
+        <div class="creator-name">Санжаа</div>
+        <div class="creator-role">Tsoda Studio · Дижитал дизайн · Монгол өв соёл</div>
         <p class="creator-bio">Tsoda нь Монгол уламжлалт урлагт хайртай, дижитал технологийг эзэмшсэн дизайнерын хувийн төсөл. Монгол угалз, хэв маяг, рельеф загварыг орчин үеийн гар урчдад хүргэхийн тулд жил жилийн судалгаа, туршилтын үр дүнд бий болсон цуглуулга юм.</p>
         <p class="creator-bio" style="margin-top:12px">Захиалгат ажил, хамтын ажиллагаа болон асуулт хариулт: <a href="mailto:hello@tsoda.mn" style="color:var(--sienna);text-decoration:none;">hello@tsoda.mn</a></p>
+      </div>
+    </div>
+
+    <div class="inspiration-card">
+      <div class="inspiration-img">
+        <img src="Zuragnuud/bob-ross.jpg" alt="Bob Ross — урам зориг">
+      </div>
+      <div class="inspiration-body">
+        <div class="inspiration-tag">Урам зориг</div>
+        <div class="inspiration-name">Bob Ross</div>
+        <p class="inspiration-quote">"We don't make mistakes, just happy little accidents." — Бүтээлч ажлын явцад төгс байдлаас илүүтэй туршин үзэх, суралцах, илэрхийлэх нь чухал гэдгийг Bob Ross биднийг сануулдаг.</p>
       </div>
     </div>
   </div>

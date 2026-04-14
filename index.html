@@ -227,6 +227,19 @@ nav{
 .collection-title{font-family:var(--display);font-size:38px;font-weight:400;color:var(--brown);margin-bottom:6px;letter-spacing:-0.01em;}
 .collection-sub{font-family:var(--ui);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--brown3);margin-bottom:28px;}
 
+/* PRICE FILTER */
+.filter-row{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;}
+.filter-label{font-family:var(--ui);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--parchment);margin-right:4px;}
+.filter-chip{background:none;border:1px solid var(--border);color:var(--brown3);font-family:var(--ui);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;padding:6px 14px;cursor:pointer;transition:all 0.2s;}
+.filter-chip:hover{border-color:var(--brown3);color:var(--brown);}
+.filter-chip.active{background:var(--sienna);border-color:var(--sienna);color:var(--cream);}
+
+/* SIMILAR */
+.similar-section{padding:40px 40px 52px;border-top:1px solid var(--border);}
+.similar-eyebrow{font-family:var(--ui);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--sienna);margin-bottom:6px;display:flex;align-items:center;gap:10px;}
+.similar-eyebrow::before{content:'';display:block;width:20px;height:1px;background:var(--sienna);}
+.similar-title{font-family:var(--display);font-size:22px;font-weight:400;color:var(--brown);margin-bottom:20px;}
+
 /* SEARCH */
 .search-wrap{position:relative;margin-bottom:28px;}
 .search-wrap input{
@@ -340,6 +353,7 @@ mark{background:none;color:var(--sienna);font-weight:500;}
   .section,.featured-section{padding:52px 20px;}
   .cat-grid{grid-template-columns:1fr;}
   .collection-page,.detail-page,.cart-page{padding:36px 20px;}
+  .similar-section{padding:32px 20px 44px;}
   .detail-layout{grid-template-columns:1fr;gap:28px;}
   footer{grid-template-columns:1fr;gap:28px;padding:40px 20px;}
   .ornament-divider{padding:24px 20px 0;}
@@ -505,6 +519,13 @@ mark{background:none;color:var(--sienna);font-weight:500;}
     <div class="breadcrumb"><span onclick="goto('home')">Нүүр</span><span class="sep">›</span><span class="current">2D Vector</span></div>
     <div class="collection-title">2D Vector</div>
     <div class="collection-sub">SVG · DXF — Лазер зүсэлт · Хэвлэл · Брэнд</div>
+    <div class="filter-row" role="group" aria-label="Үнийн шүүлт">
+      <span class="filter-label">Үнэ</span>
+      <button class="filter-chip active" onclick="setPriceFilter('twod','all',this)">Бүгд</button>
+      <button class="filter-chip" onclick="setPriceFilter('twod','low',this)">$10 доош</button>
+      <button class="filter-chip" onclick="setPriceFilter('twod','mid',this)">$10 – $20</button>
+      <button class="filter-chip" onclick="setPriceFilter('twod','high',this)">$20+</button>
+    </div>
     <div class="search-wrap">
       <input type="text" id="twod-search" placeholder="2D бараанаас хайх..." oninput="filterGrid('twod',this.value)">
       <button class="search-clear" id="twod-clear" onclick="clearSearch('twod')">✕</button>
@@ -527,6 +548,13 @@ mark{background:none;color:var(--sienna);font-weight:500;}
     <div class="breadcrumb"><span onclick="goto('home')">Нүүр</span><span class="sep">›</span><span class="current">3D Relief</span></div>
     <div class="collection-title">3D Relief</div>
     <div class="collection-sub">STL · SKP — CNC · 3D Хэвлэл · Дотоод засал</div>
+    <div class="filter-row" role="group" aria-label="Үнийн шүүлт">
+      <span class="filter-label">Үнэ</span>
+      <button class="filter-chip active" onclick="setPriceFilter('threed','all',this)">Бүгд</button>
+      <button class="filter-chip" onclick="setPriceFilter('threed','low',this)">$10 доош</button>
+      <button class="filter-chip" onclick="setPriceFilter('threed','mid',this)">$10 – $20</button>
+      <button class="filter-chip" onclick="setPriceFilter('threed','high',this)">$20+</button>
+    </div>
     <div class="search-wrap">
       <input type="text" id="threed-search" placeholder="3D бараанаас хайх..." oninput="filterGrid('threed',this.value)">
       <button class="search-clear" id="threed-clear" onclick="clearSearch('threed')">✕</button>
@@ -578,6 +606,11 @@ mark{background:none;color:var(--sienna);font-weight:500;}
         </div>
       </div>
     </div>
+    <div class="similar-section" id="similar-section" style="display:none">
+      <div class="similar-eyebrow">Санал болгох</div>
+      <div class="similar-title">Ижил төстэй бараа</div>
+      <div class="prod-grid" id="similar-grid"></div>
+    </div>
   </div>
 </div>
 
@@ -623,9 +656,26 @@ const threedItems=[
 ];
 const allItems=[...twodItems,...threedItems];
 let cart={};let currentDetail=null;
+const priceFilters={twod:'all',threed:'all'};
+
+function priceMatch(p,range){
+  if(range==='all')return true;
+  if(range==='low')return p.price<10;
+  if(range==='mid')return p.price>=10&&p.price<=20;
+  if(range==='high')return p.price>20;
+  return true;
+}
+
+function setPriceFilter(cat,range,el){
+  priceFilters[cat]=range;
+  el.closest('.filter-row').querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const q=document.getElementById(cat+'-search').value;
+  filterGrid(cat,q);
+}
 
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
-const filterGrid=debounce(function(cat,q){const items=cat==='twod'?twodItems:threedItems;const q2=q.trim().toLowerCase();const f=q2?items.filter(p=>p.name.toLowerCase().includes(q2)||p.fmt.toLowerCase().includes(q2)||p.use.toLowerCase().includes(q2)):items;document.getElementById(cat+'-grid').innerHTML=makeCards(f,q2);document.getElementById(cat+'-noresults').style.display=f.length?'none':'block';document.getElementById(cat+'-clear').classList.toggle('show',!!q);},280);
+const filterGrid=debounce(function(cat,q){const items=cat==='twod'?twodItems:threedItems;const q2=q.trim().toLowerCase();const range=priceFilters[cat]||'all';const f=items.filter(p=>(q2?p.name.toLowerCase().includes(q2)||p.fmt.toLowerCase().includes(q2)||p.use.toLowerCase().includes(q2):true)&&priceMatch(p,range));document.getElementById(cat+'-grid').innerHTML=makeCards(f,q2);document.getElementById(cat+'-noresults').style.display=f.length?'none':'block';document.getElementById(cat+'-clear').classList.toggle('show',!!q);},280);
 function hl(t,q){if(!q)return t;const r=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return t.replace(r,'<mark>$1</mark>');}
 function makeCards(items,q){return items.map(p=>`<div class="prod-card" onclick="openDetail('${p.id}')"><div class="prod-thumb"><img class="prod-img" src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div class="prod-fallback">◈</div></div><div class="prod-info"><div class="prod-name">${hl(p.name,q)}</div><div class="prod-fmt">${p.fmt}</div><div class="prod-bottom"><span class="prod-price">$${p.price}</span><button class="prod-view">Харах</button></div></div></div>`).join('');}
 function renderGrids(){document.getElementById('twod-grid').innerHTML=makeCards(twodItems,'');document.getElementById('threed-grid').innerHTML=makeCards(threedItems,'');document.getElementById('home-featured').innerHTML=makeCards([...threedItems.slice(0,3),...twodItems.slice(0,3)],'');}
@@ -655,7 +705,20 @@ function openDetail(id){
   document.getElementById('detail-thumbs').innerHTML=imgs.length>1
     ?imgs.map((src,i)=>`<div class="detail-thumb${i===0?' active':''}" onclick="switchDetailImg('${src.replace(/'/g,"\\'")}','${p.name}',this)"><img src="${src}" alt="${p.name} — зураг ${i+1}" loading="lazy"></div>`).join('')
     :'';
+  renderSimilar(p);
   goto('detail');
+}
+
+function renderSimilar(p){
+  const sec=document.getElementById('similar-section');
+  const grid=document.getElementById('similar-grid');
+  const similar=allItems.filter(x=>x.cat===p.cat&&x.id!==p.id);
+  // sort by price proximity
+  similar.sort((a,b)=>Math.abs(a.price-p.price)-Math.abs(b.price-p.price));
+  const show=similar.slice(0,3);
+  if(!show.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  grid.innerHTML=makeCards(show,'');
 }
 
 function addFromDetail(){if(!currentDetail)return;const p=currentDetail;cart[p.id]=cart[p.id]?{...cart[p.id],qty:cart[p.id].qty+1}:{...p,qty:1};const btn=document.getElementById('detail-add-btn');btn.textContent='✓ Нэмсэн';btn.className='detail-add added';updateCartUI();}
