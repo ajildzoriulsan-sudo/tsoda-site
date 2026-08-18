@@ -685,7 +685,7 @@ const threedItems=[
   {id:'d3',cat:'threed',name:'Golden Arch Panel',fmt:'STL / SKP',price:22,img:'Zuragnuud/12_jil/Luu.jpg',imgs:['Zuragnuud/12_jil/Luu.jpg','Zuragnuud/4 hvchten/Луу.png','Zuragnuud/12_jil/Bar.jpg'],gumroad:'golden-arch-panel',desc:'Алтан нумны рельеф панель загвар. Тайрдмал чимэглэл болон дотоод засалд.',use:'Панель, чимэглэл',size:'300×200×12mm',poly:'18,200 полигон'},
   {id:'d4',cat:'threed',name:'Palace Lattice',fmt:'SKP / STL',price:26,img:'Zuragnuud/12_jil/Mogoi.jpg',imgs:['Zuragnuud/12_jil/Mogoi.jpg','Zuragnuud/12_jil/Honi.jpg','Zuragnuud/12_jil/Luu.jpg'],gumroad:'palace-lattice',desc:'Ордны торон хэв маягийн рельеф. Хуваалт, панель болон дотоод засалд.',use:'Хуваалт, панель',size:'400×400×10mm',poly:'22,500 полигон'},
   {id:'d5',cat:'threed',name:'Mori Relief',fmt:'STL',price:18,img:'Zuragnuud/12_jil/Mori.jpg',imgs:['Zuragnuud/12_jil/Mori.jpg','Zuragnuud/12_jil/Tahia.jpg','Zuragnuud/12_jil/Hulgana.jpg'],gumroad:'mori-relief',desc:'Монгол морины рельеф загвар. 3D хэвлэл болон гар урлалын шавар дардасд.',use:'3D хэвлэл, шавар',size:'120×120×10mm',poly:'9,800 полигон'},
-  {id:'d6',cat:'threed',name:'Arslan Guard',fmt:'STL',price:20,img:'Zuragnuud/4 hvchten/Арслан.png',imgs:['Zuragnuud/4 hvchten/Арслан.png','Zuragnuud/4 hvchten/Бар.png','Zuragnuud/4 hvchten/Луу.png','Zuragnuud/4 hvchten/Хангарьд.png'],gumroad:'arslan-guard',desc:'Дөрвөн хүчтний нэг Арслангийн хамгаалагчийн рельеф. Декоратив болон архитектурын чимэглэлд.',use:'Декор, архитектур',size:'160×160×14mm',poly:'14,600 полигон'},
+  {id:'d6',cat:'threed',name:'Arslan Guard',fmt:'STL',price:20,img:'Zuragnuud/4 hvchten/Арслан.png',imgs:['Zuragnuud/4 hvchten/Арслан.png','Zuragnuud/4 hvchten/Бар.png','Zuragnuud/4 hvchten/Луу.png','Zuragnuud/4 hvchten/Хангарьд.png'],gumroad:'czdww',desc:'Дөрвөн хүчтний нэг Арслангийн хамгаалагчийн рельеф. Декоратив болон архитектурын чимэглэлд.',use:'Декор, архитектур',size:'160×160×14mm',poly:'14,600 полигон'},
 ];
 const allItems=[...twodItems,...threedItems];
 let cart={};let currentDetail=null;
@@ -736,7 +736,7 @@ function openDetail(id){
   const btn=document.getElementById('detail-add-btn');btn.textContent=cart[id]?'✓ Нэмсэн':'Сагсанд нэмэх';btn.className='detail-add'+(cart[id]?' added':'');
   const imgs=p.imgs||[p.img];
   document.getElementById('detail-thumbs').innerHTML=imgs.length>1
-    ?imgs.map((src,i)=>`<div class="detail-thumb${i===0?' active':''}" onclick="switchDetailImg('${src.replace(/'/g,"\\'")}','${p.name}',this)"><img src="${src}" alt="${p.name} — зураг ${i+1}" loading="lazy"></div>`).join('')
+    ?imgs.map((src,i)=>`<div class="detail-thumb${i===0?' active':''}" onclick="switchDetailImg('${src.replace(/'/g,"\\'")}\'','${p.name}',this)"><img src="${src}" alt="${p.name} — зураг ${i+1}" loading="lazy"></div>`).join('')
     :'';
   renderSimilar(p);
   goto('detail');
@@ -746,7 +746,6 @@ function renderSimilar(p){
   const sec=document.getElementById('similar-section');
   const grid=document.getElementById('similar-grid');
   const similar=allItems.filter(x=>x.cat===p.cat&&x.id!==p.id);
-  // sort by price proximity
   similar.sort((a,b)=>Math.abs(a.price-p.price)-Math.abs(b.price-p.price));
   const show=similar.slice(0,3);
   if(!show.length){sec.style.display='none';return;}
