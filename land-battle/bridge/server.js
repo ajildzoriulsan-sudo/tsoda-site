@@ -224,6 +224,7 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server });
+wss.on('error', () => {}); // listen errors are reported by server.on('error')
 function broadcast(msg) {
   const s = JSON.stringify(msg);
   for (const c of wss.clients) if (c.readyState === 1) c.send(s);
@@ -242,7 +243,25 @@ wss.on('connection', ws => {
   });
 });
 
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') console.error(`Порт ${PORT} эзэлсэн байна — bridge аль хэдийн ажиллаж байж магадгүй. Нөгөө цонхыг хаагаад дахин оролдоно уу.`);
+  else console.error(e);
+  process.exit(1);
+});
+function openBrowser(url) {
+  const { exec } = require('child_process');
+  const cmd = process.platform === 'win32' ? `start "" "${url}"` : process.platform === 'darwin' ? `open "${url}"` : `xdg-open "${url}"`;
+  exec(cmd, () => {});
+}
+
 server.listen(PORT, () => {
-  console.log(`LAND BATTLE LIVE bridge → http://localhost:${PORT}/?ws=auto`);
+  const voice = AZ_KEY ? '&voice=azure' : '';
+  console.log('');
+  console.log(`  Тоглоом + самбар : http://localhost:${PORT}/?ws=auto${voice}`);
+  console.log(`  OBS / LIVE Studio: http://localhost:${PORT}/?ws=auto&overlay=1${voice}   (1080 x 1920)`);
+  console.log(`  AI монгол хоолой : ${AZ_KEY ? 'Azure ' + AZ_VOICE : 'браузер TTS (Azure түлхүүр тохируулаагүй)'}`);
+  console.log('  Зогсоох: Ctrl+C');
+  console.log('');
+  if (args.open) openBrowser(`http://localhost:${PORT}/?ws=auto${voice}`);
   if (MOCK) createMockSource(); else createTikTokSource();
 });

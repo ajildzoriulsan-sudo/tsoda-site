@@ -27,6 +27,19 @@ land-battle/
 
 ## 2. TikTok LIVE-тэй холбох
 
+### Windows: `start.bat` (хамгийн хялбар)
+
+1. [Node.js LTS](https://nodejs.org/) суулгана (байхгүй бол `start.bat` өөрөө татах хуудсыг нээнэ).
+2. TikTok дээр **LIVE эхлүүлнэ**.
+3. `land-battle\start.bat` дээр давхар дарна → **[1]** → анх удаа TikTok нэрээ бичнэ (хадгалагдана).
+4. Браузер автоматаар нээгдэнэ. OBS / LIVE Studio-д оруулах хаяг хар цонхонд бичигдсэн байна.
+5. LIVE дуустал хар цонхыг бүү хаа.
+
+Цэс: [2] TikTok-гүй туршилт · [3] нэр солих · [4] Azure монгол хоолойн түлхүүр.
+Эхний удаа шаардлагатай сангуудыг (`npm install`) өөрөө суулгана.
+
+### Гараар (Mac / Linux / Windows)
+
 ```bash
 cd land-battle/bridge
 npm install
