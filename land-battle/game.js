@@ -509,7 +509,8 @@ const game = {
     this.floaters = this.floaters.filter(f => f.t < 1.3);
     for (const q of this.particles) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 1 - 2.2 * dt; q.vy *= 1 - 2.2 * dt; }
     this.particles = this.particles.filter(q => q.t < q.life);
-    if (this.particles.length > 900) this.particles.splice(0, this.particles.length - 900);
+    const maxP = quality < 0.8 ? 300 : 900;
+    if (this.particles.length > maxP) this.particles.splice(0, this.particles.length - maxP);
   },
 
   physics(dt) {
@@ -655,6 +656,18 @@ function loadSession() {
 // ───────────────────────────── 5. Renderer ─────────────────────────────
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
+// Render at the size the canvas is actually shown (× devicePixelRatio), not always 1080×1920.
+// All drawing uses logical 1080×1920 coordinates through a scale transform.
+let SCALE = 1, quality = 1;
+function fitCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(clamp(rect.width * dpr * quality, 360, 1080));
+  if (canvas.width !== w) { canvas.width = w; canvas.height = Math.round(w * 16 / 9); }
+  SCALE = canvas.width / W;
+}
+window.addEventListener('resize', fitCanvas);
 const FONT = '"Segoe UI", system-ui, -apple-system, Roboto, "Noto Sans", sans-serif';
 let showSafe = false;
 
@@ -685,36 +698,63 @@ function drawAvatar(p, x, y, r) {
 }
 const pulse = (speed = 4) => 0.5 + 0.5 * Math.sin(game.t * speed);
 
-let bgGrad;
+// Background: drawn at low resolution into an offscreen canvas and refreshed a few times
+// per second (the soft light blobs move slowly), instead of 4 full-screen gradients every frame.
+const bgCanvas = document.createElement('canvas'); bgCanvas.width = 270; bgCanvas.height = 480;
+const bgCtx = bgCanvas.getContext('2d');
+let bgFrame = 0;
 function drawBackground() {
-  if (!bgGrad) {
-    bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-    bgGrad.addColorStop(0, '#1a0b3d'); bgGrad.addColorStop(0.55, '#0e0826'); bgGrad.addColorStop(1, '#05030f');
+  if (bgFrame++ % 8 === 0) {
+    const c = bgCtx; c.setTransform(0.25, 0, 0, 0.25, 0, 0);
+    const lg = c.createLinearGradient(0, 0, 0, H);
+    lg.addColorStop(0, '#1a0b3d'); lg.addColorStop(0.55, '#0e0826'); lg.addColorStop(1, '#05030f');
+    c.fillStyle = lg; c.fillRect(0, 0, W, H);
+    for (let i = 0; i < 3; i++) {
+      const x = 540 + Math.cos(game.t * 0.13 + i * 2.1) * 380, y = 850 + Math.sin(game.t * 0.11 + i * 1.7) * 450;
+      const g = c.createRadialGradient(x, y, 0, x, y, 420);
+      g.addColorStop(0, ['rgba(255,61,127,.15)', 'rgba(37,244,238,.11)', 'rgba(140,90,255,.15)'][i]);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    }
   }
-  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 3; i++) {
-    const x = 540 + Math.cos(game.t * 0.13 + i * 2.1) * 380, y = 850 + Math.sin(game.t * 0.11 + i * 1.7) * 450;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, 420);
-    g.addColorStop(0, ['rgba(255,61,127,.15)', 'rgba(37,244,238,.11)', 'rgba(140,90,255,.15)'][i]);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  }
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(bgCanvas, 0, 0, W, H);
+}
+
+// Arena floor (glow + gradient + grid) is cached and only re-rendered when its size changes.
+const arenaCanvas = document.createElement('canvas');
+let arenaKey = '';
+const AP = ARENA.R0 + 90; // padding around the arena for the glow
+function arenaBase(R) {
+  const key = Math.round(R / 2) + ':' + SCALE.toFixed(3);
+  if (key === arenaKey) return arenaCanvas;
+  arenaKey = key;
+  const size = Math.ceil(AP * 2 * SCALE);
+  if (arenaCanvas.width !== size) { arenaCanvas.width = size; arenaCanvas.height = size; }
+  const c = arenaCanvas.getContext('2d');
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, size, size);
+  c.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  const x = AP, y = AP;
+  c.beginPath(); c.arc(x, y, ARENA.R0 + 6, 0, TAU);
+  c.strokeStyle = 'rgba(255,255,255,.06)'; c.lineWidth = 3; c.stroke();
+  c.save();
+  c.shadowColor = 'rgba(120,80,255,.55)'; c.shadowBlur = 60 * SCALE;
+  const g = c.createRadialGradient(x - R * 0.3, y - R * 0.35, R * 0.1, x, y, R);
+  g.addColorStop(0, '#3a2a7a'); g.addColorStop(0.7, '#241a55'); g.addColorStop(1, '#170f3d');
+  c.beginPath(); c.arc(x, y, R, 0, TAU); c.fillStyle = g; c.fill();
+  c.restore();
+  c.save(); c.beginPath(); c.arc(x, y, R, 0, TAU); c.clip();
+  c.strokeStyle = 'rgba(255,255,255,.05)'; c.lineWidth = 2;
+  for (let rr = 70; rr < R; rr += 70) { c.beginPath(); c.arc(x, y, rr, 0, TAU); c.stroke(); }
+  for (let a = 0; a < 12; a++) { c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a * TAU / 12) * R, y + Math.sin(a * TAU / 12) * R); c.stroke(); }
+  c.restore();
+  return arenaCanvas;
 }
 
 function drawArena() {
   const { x, y } = ARENA, R = game.arenaR;
-  ctx.beginPath(); ctx.arc(x, y, ARENA.R0 + 6, 0, TAU);
-  ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.save();
-  ctx.shadowColor = 'rgba(120,80,255,.55)'; ctx.shadowBlur = 60;
-  const g = ctx.createRadialGradient(x - R * 0.3, y - R * 0.35, R * 0.1, x, y, R);
-  g.addColorStop(0, '#3a2a7a'); g.addColorStop(0.7, '#241a55'); g.addColorStop(1, '#170f3d');
-  ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fillStyle = g; ctx.fill();
-  ctx.restore();
+  ctx.drawImage(arenaBase(R), x - AP, y - AP, AP * 2, AP * 2);
   ctx.save(); ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.clip();
-  ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 2;
-  for (let rr = 70; rr < R; rr += 70) { ctx.beginPath(); ctx.arc(x, y, rr, 0, TAU); ctx.stroke(); }
-  for (let a = 0; a < 12; a++) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a * TAU / 12) * R, y + Math.sin(a * TAU / 12) * R); ctx.stroke(); }
   // danger band near the rim
   if (game.state === STATE.BATTLE) {
     ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.arc(x, y, R - 26, 0, TAU, true);
@@ -987,6 +1027,7 @@ function drawSafeZones() {
 
 let audioHint = false;
 function render() {
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.save();
   if (game.shake > 0) ctx.translate(rand(-1, 1) * game.shake * 18, rand(-1, 1) * game.shake * 18);
   drawBackground();
@@ -1300,8 +1341,17 @@ function buildBalance() {
 }
 
 let last = performance.now();
+let ftAvg = 16, qT = 0;
 function frame(ts) {
-  const dt = Math.min(0.05, (ts - last) / 1000); last = ts;
+  const raw = (ts - last) / 1000;
+  const dt = Math.min(0.05, raw); last = ts;
+  // auto quality: if frames get slow, lower the render resolution a step (and raise it back later)
+  ftAvg += (raw * 1000 - ftAvg) * 0.05; qT += raw;
+  if (qT > 3) {
+    qT = 0;
+    if (ftAvg > 24 && quality > 0.6) { quality = Math.max(0.6, quality - 0.15); fitCanvas(); }
+    else if (ftAvg < 15 && quality < 1) { quality = Math.min(1, quality + 0.1); fitCanvas(); }
+  }
   autoSimTick(dt);
   game.update(dt);
   render();
@@ -1310,6 +1360,7 @@ function frame(ts) {
 
 loadSession();
 initPanel();
+fitCanvas();
 setInterval(saveSession, 5000);
 requestAnimationFrame(frame);
 window.LBL = { game, bridge, sim, audio, commentator, CFG: () => CFG };
