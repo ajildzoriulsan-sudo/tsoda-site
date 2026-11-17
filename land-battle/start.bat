@@ -34,7 +34,7 @@ echo  ==============================================
 echo            ГАЗРЫН ТУЛААН  -  LAND BATTLE LIVE
 echo  ==============================================
 echo.
-set "TTUSER="
+set "TTUSER=tsoda.studio"
 if exist "%USERFILE%" set /p TTUSER=<"%USERFILE%"
 if defined TTUSER echo   TikTok нэр : @%TTUSER%
 if not defined TTUSER echo   TikTok нэр : - тохируулаагүй -
