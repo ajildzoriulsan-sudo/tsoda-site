@@ -98,6 +98,31 @@ let viewers = 0;
 let liveStatus = { text: 'Эхэлж байна…', level: 'warn' };
 function setLive(text, level) { liveStatus = { text, level }; broadcast({ type: 'status', text, level, viewers }); console.log(`[tiktok] ${text}`); }
 
+function flattenErrors(e, out = []) {
+  if (!e) return out;
+  const m = e.message || e.info || '';
+  if (m) out.push(`${e.constructor?.name || 'Error'}: ${m}`);
+  else if (!e.errors) out.push(String(e.constructor?.name || e));
+  for (const x of e.errors || []) flattenErrors(x, out);
+  if (e.exception) flattenErrors(e.exception, out);
+  return out;
+}
+/** Turn library errors into a Mongolian hint the streamer can act on. */
+function explainError(e) {
+  const all = (e?.constructor?.name || '') + ' ' + flattenErrors(e).join(' ');
+  if (/UserOffline|isn't online|not online|offline|LIVE has ended/i.test(all))
+    return `@${USER} одоо LIVE хийгээгүй байна. TikTok дээр LIVE эхлүүлэхэд автоматаар холбогдоно.`;
+  if (/404|not found|doesn't exist|no such user/i.test(all))
+    return `@${USER} нэртэй хэрэглэгч олдсонгүй. start.bat → [3]-аар нэрээ шалгана уу (@-ийн дараах нэр).`;
+  if (/429|rate.?limit|too many/i.test(all))
+    return 'TikTok хэт олон хүсэлт гэж түр хаалаа. Хэдэн минутын дараа өөрөө дахин оролдоно.';
+  if (/FetchIsLive|Room ID|403/i.test(all))
+    return `@${USER}-ийн LIVE-г олж чадсангүй: LIVE эхлээгүй, эсвэл TikTok энэ сүлжээнээс хандалтыг хааж байна. LIVE эхлүүлээд хүлээнэ үү (өөрөө дахин оролдоно).`;
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network/i.test(all))
+    return 'Интернэт холболт алга эсвэл TikTok руу хүрэхгүй байна. Холболтоо шалгана уу.';
+  return 'Холбогдож чадсангүй: ' + (flattenErrors(e)[0] || 'тодорхойгүй алдаа');
+}
+
 function createTikTokSource() {
   const { TikTokLiveConnection, WebcastEvent, ControlEvent } = require('tiktok-live-connector');
   let conn = null, retry = 0, timer = null;
@@ -141,7 +166,8 @@ function createTikTokSource() {
       retry = 0;
       setLive(`@${USER} LIVE-тэй холбогдлоо (room ${state.roomId})`, 'ok');
     }).catch(err => {
-      setLive(`Холбогдож чадсангүй: ${err?.message || err}`, 'warn');
+      setLive(explainError(err), 'warn');
+      console.warn('[tiktok] details:', flattenErrors(err).join(' | '));
       reconnect();
     });
   }

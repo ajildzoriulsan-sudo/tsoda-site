@@ -191,7 +191,7 @@ const commentator = {
   },
   pickVoice() {
     const vs = this.voices.length ? this.voices : this.loadVoices();
-    return vs.find(v => v.name === S.voiceName) || vs.find(v => /^mn/i.test(v.lang)) || vs.find(v => /^ru/i.test(v.lang)) || null;
+    return vs.find(v => v.name === S.voiceName) || vs.find(v => /^mn/i.test(v.lang) && /natural|online/i.test(v.name)) || vs.find(v => /^mn/i.test(v.lang)) || vs.find(v => /^ru/i.test(v.lang)) || null;
   },
   hasClip(key) { return !!(S.useRecorded && key && this.clips[key] && this.clips[key].length); },
   async loadClips() {
