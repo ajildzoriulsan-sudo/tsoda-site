@@ -44,6 +44,8 @@ const DEFAULT_CONFIG = {
   respawnDelay: 1.2,
   respawnKeep: 0.6,       // fraction of size kept after losing a life
   ghostSec: 2,            // invulnerable after respawn
+  // Joining
+  requireFollow: 1,       // 1 = only followers join via Like/comment; 0 = anyone who likes joins
   // Rounds
   minPlayers: 2,
   maxPlayers: 40,
@@ -67,7 +69,7 @@ const CONFIG_LABELS = {
   smallGiftMax: 'Жижиг gift ≤ 💎', growthBoostSec: 'Өсөлт boost (сек)', powerSec: 'Хүч boost (сек)',
   powerMult: 'Хүч ×', lives: 'Амь', baseSpeed: 'Хурд', pushStrength: 'Түлхэх хүч', edgeGrip: 'Захын барьц',
   lobbySec: 'Хүлээлт (сек)', lateJoinSec: 'Хожуу нэгдэх (сек)', shrinkStartSec: 'Арен багасах (сек)',
-  roundMaxSec: 'Раундын урт (сек)', maxPlayers: 'Дээд тоглогч', killScore: 'Шахалтын оноо', winScore: 'Ялалтын оноо',
+  roundMaxSec: 'Раундын урт (сек)', requireFollow: 'Follow шаардах (1/0)', maxPlayers: 'Дээд тоглогч', killScore: 'Шахалтын оноо', winScore: 'Ялалтын оноо',
 };
 let CFG = loadConfig();
 function loadConfig() {
@@ -202,7 +204,7 @@ const game = {
   },
 
   onLike(user, count) {
-    const p = this.player(user, !!user?.isFollower);
+    const p = this.player(user, !!user?.isFollower || !CFG.requireFollow);
     this.totalLikes += count;
     this.flash.like = this.t;
     if (!p) return;
@@ -253,7 +255,7 @@ const game = {
   onComment(user, text) {
     const cmd = text.trim().toLowerCase();
     const isJoin = /^!(join|play|rejoin|орох|тоглох)/.test(cmd);
-    const p = this.player(user, !!user?.isFollower && isJoin);
+    const p = this.player(user, (!!user?.isFollower || !CFG.requireFollow) && isJoin);
     if (!p) return;
     if (isJoin) { this.tryEnter(p); return; }
     if (cmd.startsWith('!stats') || cmd.startsWith('!оноо')) {
