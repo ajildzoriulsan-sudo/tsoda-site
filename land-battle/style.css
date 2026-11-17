@@ -40,6 +40,12 @@ button.on { background: var(--accent); border-color: var(--accent); }
 .balance { display: grid; grid-template-columns: 1fr 74px; gap: 4px 8px; align-items: center; font-size: 12px; }
 .balance label { color: var(--muted); }
 .balance input { padding: 4px 6px; text-align: right; }
+.balance input[type=range] { padding: 0; width: 100%; accent-color: var(--accent); }
+.balance select, select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; font: inherit; font-size: 12px; min-width: 0; width: 100%; }
+.balance { grid-template-columns: 1fr 120px; }
+.inline { display: flex; gap: 6px; align-items: center; }
+button.wide { width: 100%; text-align: center; margin-bottom: 8px; }
+#voiceInfo { margin-top: 6px; }
 
 body.overlay #panel { display: none; }
 body.overlay { background: transparent; }

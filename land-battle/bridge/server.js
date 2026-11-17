@@ -5,6 +5,7 @@
  * Usage:
  *   npm install
  *   node server.js --user=@your_tiktok_name [--port=8787] [--mock]
+ *   Optional Mongolian AI voice:  AZURE_SPEECH_KEY=... AZURE_SPEECH_REGION=eastasia node server.js ...
  *
  * Then open  http://localhost:8787/?ws=auto   (it serves the game too).
  * For OBS / TikTok LIVE Studio browser source:  http://localhost:8787/?ws=auto&overlay=1
@@ -172,11 +173,47 @@ function createMockSource() {
   setInterval(() => broadcast({ type: 'viewers', count: viewers }), 3000);
 }
 
+// ───────── AI commentator voice: Azure neural TTS (mn-MN) ─────────
+// Set AZURE_SPEECH_KEY and AZURE_SPEECH_REGION (e.g. eastasia). Voices: mn-MN-BataaNeural (male), mn-MN-YesuiNeural (female).
+const AZ_KEY = process.env.AZURE_SPEECH_KEY || '';
+const AZ_REGION = process.env.AZURE_SPEECH_REGION || 'eastasia';
+const AZ_VOICE = process.env.AZURE_VOICE || 'mn-MN-BataaNeural';
+const ttsCache = new Map();          // text → mp3 Buffer (commentary lines repeat a lot)
+const xmlEscape = (s) => s.replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+async function handleTts(req, res, query) {
+  const text = String(query.get('text') || '').slice(0, 300).trim();
+  if (!AZ_KEY) { res.writeHead(503, { 'Access-Control-Allow-Origin': '*' }); return res.end('AZURE_SPEECH_KEY not set'); }
+  if (!text) { res.writeHead(400); return res.end(); }
+  try {
+    let mp3 = ttsCache.get(text);
+    if (!mp3) {
+      const ssml = `<speak version="1.0" xml:lang="mn-MN"><voice name="${AZ_VOICE}"><prosody rate="+8%">${xmlEscape(text)}</prosody></voice></speak>`;
+      const r = await fetch(`https://${AZ_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        method: 'POST',
+        headers: { 'Ocp-Apim-Subscription-Key': AZ_KEY, 'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3', 'User-Agent': 'land-battle-live' },
+        body: ssml,
+      });
+      if (!r.ok) throw new Error(`Azure TTS ${r.status}`);
+      mp3 = Buffer.from(await r.arrayBuffer());
+      ttsCache.set(text, mp3);
+      if (ttsCache.size > 300) ttsCache.delete(ttsCache.keys().next().value);
+    }
+    res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'max-age=86400' });
+    res.end(mp3);
+  } catch (e) {
+    console.warn('[tts]', e.message);
+    res.writeHead(502, { 'Access-Control-Allow-Origin': '*' }); res.end(e.message);
+  }
+}
+
 // ───────── HTTP (serves the game folder) + WebSocket ─────────
 const ROOT = path.resolve(__dirname, '..');
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => {
-  const url = decodeURIComponent((req.url || '/').split('?')[0]);
+  const [rawPath, qs] = (req.url || '/').split('?');
+  if (rawPath === '/tts') return handleTts(req, res, new URLSearchParams(qs || ''));
+  const url = decodeURIComponent(rawPath);
   const file = path.resolve(ROOT, '.' + (url === '/' ? '/index.html' : url));
   if (!file.startsWith(ROOT + path.sep) || file.includes(`${path.sep}bridge${path.sep}`)) { res.writeHead(403); return res.end(); }
   fs.readFile(file, (err, data) => {

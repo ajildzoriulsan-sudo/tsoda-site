@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LAND BATTLE LIVE</title>
+<title>Газрын тулаан — LAND BATTLE LIVE</title>
 <meta name="description" content="TikTok LIVE interactive physics battle game">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="style.css">
@@ -52,12 +52,39 @@
     </section>
 
     <section>
+      <h2>Дуу ба AI тайлбарлагч</h2>
+      <button id="audioOn" class="wide">🔇 Дуу асаах</button>
+      <div class="balance">
+        <label for="sfxVol">Эффект</label><input id="sfxVol" type="range" min="0" max="1" step="0.05">
+        <label for="musicOn">Хөгжим</label><span class="inline"><input id="musicOn" type="checkbox"><input id="musicVol" type="range" min="0" max="1" step="0.05"></span>
+        <label for="voiceMode">Тайлбарлагч</label>
+        <select id="voiceMode">
+          <option value="browser">Браузер TTS</option>
+          <option value="azure">Azure монгол хоолой</option>
+          <option value="off">Унтраах</option>
+        </select>
+        <label for="voiceChatty">Ярих давтамж</label>
+        <select id="voiceChatty">
+          <option value="2">Их</option>
+          <option value="1">Дунд</option>
+          <option value="0">Зөвхөн чухал</option>
+        </select>
+        <label for="voiceName">Хоолой</label><select id="voiceName"></select>
+        <label for="voiceVol">Хоолойн чанга</label><input id="voiceVol" type="range" min="0" max="1" step="0.05">
+        <label for="voiceRate">Хурд</label><input id="voiceRate" type="range" min="0.7" max="1.5" step="0.05">
+      </div>
+      <div class="row"><button id="voiceTest">🗣 Хоолой турших</button></div>
+      <div id="voiceInfo" class="status off"></div>
+    </section>
+
+    <section>
       <h2>Тест</h2>
       <div class="grid">
         <button id="addBots">🤖 +10 бот</button>
         <button id="autoSim" class="toggle">▶ Авто симуляц</button>
         <button id="forceEnd">⏹ Раунд дуусгах</button>
         <button id="resetAll">♻ Бүгдийг цэвэрлэх</button>
+        <button id="safeZone" class="toggle">📱 TikTok бүс харах</button>
       </div>
     </section>
 
@@ -71,6 +98,7 @@
     </section>
   </aside>
 </div>
+<script src="audio.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
