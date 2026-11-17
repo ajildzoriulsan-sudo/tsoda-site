@@ -207,12 +207,61 @@ async function handleTts(req, res, query) {
   }
 }
 
+// ───────── Streamer's own recorded voice lines ─────────
+// Stored in bridge/voices/<key>_<n>.<ext>. You can also drop your own mp3/wav files here
+// named like start_1.mp3, final3_2.wav (keys are listed in audio.js → VOICE_LINES).
+const VOICE_DIR = path.join(__dirname, 'voices');
+const AUDIO_TYPES = { '.webm': 'audio/webm', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4' };
+const CLIP_RE = /^([a-z0-9]+(?:_[a-z0-9]+)*)_(\d+)\.(webm|ogg|mp3|wav|m4a)$/;
+function listVoices() {
+  const out = {};
+  let files = [];
+  try { files = fs.readdirSync(VOICE_DIR); } catch {}
+  for (const f of files.sort()) { const m = CLIP_RE.exec(f); if (m) (out[m[1]] = out[m[1]] || []).push(f); }
+  return out;
+}
+function handleVoices(req, res, sub) {
+  const cors = { 'Access-Control-Allow-Origin': '*' };
+  if (!sub && req.method === 'GET') { res.writeHead(200, { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify(listVoices())); }
+  if (req.method === 'GET' && CLIP_RE.test(sub)) {
+    return fs.readFile(path.join(VOICE_DIR, sub), (err, data) => {
+      if (err) { res.writeHead(404, cors); return res.end(); }
+      res.writeHead(200, { ...cors, 'Content-Type': AUDIO_TYPES[path.extname(sub)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+      res.end(data);
+    });
+  }
+  if (req.method === 'DELETE' && CLIP_RE.test(sub)) {
+    fs.unlink(path.join(VOICE_DIR, sub), () => { res.writeHead(204, cors); res.end(); });
+    return;
+  }
+  if (req.method === 'POST' && /^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(sub)) {
+    // only accept uploads from this computer
+    const ra = req.socket.remoteAddress || '';
+    if (!/^(::1|127\.|::ffff:127\.)/.test(ra)) { res.writeHead(403, cors); return res.end(); }
+    const ct = String(req.headers['content-type'] || '');
+    const ext = ct.includes('ogg') ? 'ogg' : ct.includes('mpeg') ? 'mp3' : ct.includes('wav') ? 'wav' : ct.includes('mp4') ? 'm4a' : 'webm';
+    const chunks = []; let size = 0;
+    req.on('data', c => { size += c.length; if (size > 3e6) req.destroy(); else chunks.push(c); });
+    req.on('end', () => {
+      fs.mkdirSync(VOICE_DIR, { recursive: true });
+      const name = `${sub}_${Date.now()}.${ext}`;
+      fs.writeFile(path.join(VOICE_DIR, name), Buffer.concat(chunks), err => {
+        res.writeHead(err ? 500 : 200, { ...cors, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ file: name }));
+      });
+    });
+    return;
+  }
+  res.writeHead(400, cors); res.end();
+}
+
 // ───────── HTTP (serves the game folder) + WebSocket ─────────
 const ROOT = path.resolve(__dirname, '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => {
   const [rawPath, qs] = (req.url || '/').split('?');
   if (rawPath === '/tts') return handleTts(req, res, new URLSearchParams(qs || ''));
+  if (rawPath === '/voices' || rawPath.startsWith('/voices/')) return handleVoices(req, res, decodeURIComponent(rawPath.slice(8)));
   const url = decodeURIComponent(rawPath);
   const file = path.resolve(ROOT, '.' + (url === '/' ? '/index.html' : url));
   if (!file.startsWith(ROOT + path.sep) || file.includes(`${path.sep}bridge${path.sep}`)) { res.writeHead(403); return res.end(); }

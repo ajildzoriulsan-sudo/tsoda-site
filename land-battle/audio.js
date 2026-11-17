@@ -6,7 +6,7 @@
 'use strict';
 
 const SETTINGS_KEY = 'lbl.audio.v1';
-const DEFAULTS = { sfxVol: 0.7, musicVol: 0.35, music: true, voiceMode: 'browser', voiceName: '', voiceVol: 1, voiceRate: 1.05, voiceChatty: 2 };
+const DEFAULTS = { sfxVol: 0.7, musicVol: 0.35, music: true, voiceMode: 'browser', voiceName: '', voiceVol: 1, voiceRate: 1.0, voiceChatty: 1, useRecorded: true };
 let S = { ...DEFAULTS };
 try { S = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; } catch {}
 function save() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(S)); } catch {} }
@@ -150,6 +150,28 @@ const SFX = {
   tick: (a) => a.tone(1500, 0.03, { type: 'square', vol: 0.05 }),
 };
 
+// ───────────────────────────── Recorded voice lines ─────────────────────────────
+/* Phrases a streamer can record in their own voice (panel → "Хоолой бичих").
+ * Names are never in a recording: the name is shown on screen instead. */
+const VOICE_LINES = [
+  ['start',      'Тулаан эхлэх',          'Тулаан эхэллээ! Бусдаа талбайгаас шахаж гарга!'],
+  ['soon',       'Удахгүй эхлэх',         'Тулаан удахгүй эхэлнэ! Like дараад томор!'],
+  ['lobby',      'Тоглогч урих',          'Follow дараад тоглоомд ороорой! Like дарвал томорно!'],
+  ['newround',   'Шинэ раунд',            'Шинэ раунд эхэллээ! Follow дараад нэгдээрэй!'],
+  ['join',       'Тоглогч нэгдэх',        'Шинэ тоглогч орлоо!'],
+  ['gift_small', 'Жижиг gift',            'Баярлалаа! Өсөлт хоёр дахин!'],
+  ['gift_big',   'Том gift',              'Гайхалтай! Хүч нэмэгдлээ! Бүгд болгоомжтой!'],
+  ['rose_back',  'Rose-оор буцах',        'Сарнайгаар тулаанд буцаж орлоо!'],
+  ['hit',        'Шахалт',                'Хүчтэй түлхэлт!'],
+  ['out',        'Хасагдах',              'Хасагдлаа!'],
+  ['leader',     'Тэргүүлэгч солигдох',   'Шинэ тэргүүлэгч гарч ирлээ!'],
+  ['shrink',     'Арен багасах',          'Анхаар! Талбай багасаж байна!'],
+  ['sec30',      '30 секунд',             'Гучин секунд үлдлээ!'],
+  ['final3',     'Сүүлийн 3',             'Сүүлийн гурван тоглогч үлдлээ!'],
+  ['final2',     'Сүүлийн 2',             'Сүүлийн хоёр! Хэн нь ялах вэ?'],
+  ['win',        'Ялагч',                 'Ялагч тодорлоо! Баяр хүргэе!'],
+];
+
 // ───────────────────────────── AI commentator ─────────────────────────────
 /* Short Mongolian lines spoken over the game.
  *  - 'browser': Web Speech API (free; picks a Mongolian voice if the OS has one, else Russian/any)
@@ -158,6 +180,8 @@ const SFX = {
  * A small priority queue keeps it from talking over itself or lagging behind the action. */
 const commentator = {
   queue: [], speaking: false, ttsBase: '', voices: [], lastSpokeAt: 0, audioEl: null, onError: null,
+  clips: {},              // key → [file names] recorded by the streamer (served by the bridge)
+  lastClip: {},
 
   get settings() { return S; },
   loadVoices() {
@@ -169,14 +193,22 @@ const commentator = {
     const vs = this.voices.length ? this.voices : this.loadVoices();
     return vs.find(v => v.name === S.voiceName) || vs.find(v => /^mn/i.test(v.lang)) || vs.find(v => /^ru/i.test(v.lang)) || null;
   },
-  /** prio: 1 = chatter (dropped when busy), 2 = normal, 3 = important (jumps the queue) */
-  say(text, prio = 2) {
-    if (S.voiceMode === 'off' || !text) return;
+  hasClip(key) { return !!(S.useRecorded && key && this.clips[key] && this.clips[key].length); },
+  async loadClips() {
+    if (!this.ttsBase && !location.protocol.startsWith('http')) return this.clips;
+    try { const r = await fetch(`${this.ttsBase}/voices`); if (r.ok) this.clips = await r.json(); } catch {}
+    return this.clips;
+  },
+  /** prio: 1 = chatter (dropped when busy), 2 = normal, 3 = important (jumps the queue).
+   *  key: id of a recorded line; when the streamer recorded it, the recording is played instead of TTS. */
+  say(text, prio = 2, key = '') {
+    const clip = this.hasClip(key);
+    if (!clip && (S.voiceMode === 'off' || !text)) return;
     if (prio < 3 - S.voiceChatty) return;      // chattiness: 0 = only important, 1 = normal+, 2 = everything
     if (prio <= 1 && (this.speaking || this.queue.length)) return;
-    const clean = text.replace(/[\p{Extended_Pictographic}‍️]/gu, '').replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const clean = String(text || key).replace(/[\p{Extended_Pictographic}‍️]/gu, '').replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (!clean) return;
-    this.queue.push({ text: clean, prio, at: performance.now() });
+    this.queue.push({ text: clean, key: clip ? key : '', prio, at: performance.now() });
     this.queue.sort((a, b) => b.prio - a.prio || a.at - b.at);
     if (this.queue.length > 3) this.queue.length = 3;
     this.next();
@@ -196,7 +228,8 @@ const commentator = {
     if (!item) return;
     this.speaking = true;
     audio.duck(true);
-    if (S.voiceMode === 'azure') this.speakAzure(item.text);
+    if (item.key && this.hasClip(item.key)) this.playClip(item.key);
+    else if (S.voiceMode === 'azure') this.speakAzure(item.text);
     else this.speakBrowser(item.text);
   },
   done() {
@@ -204,12 +237,27 @@ const commentator = {
     audio.duck(false);
     setTimeout(() => this.next(), 250);
   },
+  playClip(key) {
+    const files = this.clips[key];
+    let f = files[Math.floor(Math.random() * files.length)];
+    if (files.length > 1 && f === this.lastClip[key]) f = files[(files.indexOf(f) + 1) % files.length];
+    this.lastClip[key] = f;
+    this.playUrl(`${this.ttsBase}/voices/${encodeURIComponent(f)}`, 1);
+  },
+  playUrl(url, rate, revoke) {
+    const el = new Audio(url);
+    this.audioEl = el;
+    el.volume = S.voiceVol; el.playbackRate = rate;
+    const fin = () => { if (revoke) URL.revokeObjectURL(url); if (this.audioEl === el) { this.audioEl = null; this.done(); } };
+    el.onended = fin; el.onerror = fin;
+    el.play().catch(fin);
+  },
   speakBrowser(text) {
     if (!('speechSynthesis' in window)) { this.done(); return; }
     const u = new SpeechSynthesisUtterance(text);
     const v = this.pickVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'mn-MN';
-    u.rate = S.voiceRate; u.volume = S.voiceVol; u.pitch = 1.05;
+    u.rate = S.voiceRate; u.volume = S.voiceVol; u.pitch = 1;
     let finished = false;
     const fin = () => { if (!finished) { finished = true; this.done(); } };
     u.onend = fin; u.onerror = fin;
@@ -222,18 +270,11 @@ const commentator = {
       if (!r.ok) throw new Error('TTS ' + r.status);
       return r.blob();
     }).then(blob => {
-      const url = URL.createObjectURL(blob);
-      const el = new Audio(url);
-      this.audioEl = el;
-      el.volume = S.voiceVol;
-      el.playbackRate = S.voiceRate;
-      const fin = () => { URL.revokeObjectURL(url); if (this.audioEl === el) { this.audioEl = null; this.done(); } };
-      el.onended = fin; el.onerror = fin;
-      el.play().catch(fin);
+      this.playUrl(URL.createObjectURL(blob), S.voiceRate, true);
     }).catch(err => { if (this.onError) this.onError(err); this.done(); });
   },
 };
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => commentator.loadVoices();
 
-window.LBLAudio = { audio, commentator };
+window.LBLAudio = { audio, commentator, VOICE_LINES };
 })();

@@ -233,7 +233,7 @@ const game = {
       p.boostUntil = Math.max(p.boostUntil, this.t) + CFG.growthBoostSec;
       this.pushFeed(`🎁 ${p.name} · ${name}`, p.color);
       this.announce({ icon: '🎁', text: `${p.name}`, sub: `${name} илгээлээ · ӨСӨЛТ ×${CFG.growthBoostMult}`, color: GREEN, dur: 2, prio: 1,
-        voice: pick([`${p.name} ${name} илгээлээ! Өсөлт хоёр дахин!`, `Баярлалаа ${p.name}! Хурдан томорч байна!`]), vprio: 2 });
+        voice: pick([`${p.name} ${name} илгээлээ! Өсөлт хоёр дахин!`, `Баярлалаа ${p.name}! Хурдан томорч байна!`]), vprio: 2, vkey: 'gift_small' });
       audio.play('gift');
     } else {
       this.flash.gift = this.t;
@@ -243,7 +243,7 @@ const game = {
       p.health = 100;
       this.pushFeed(`💎 ${p.name} · ${name}`, GOLD);
       this.announce({ icon: '💎', text: `${p.name}`, sub: `${name} ×${count} · ХҮЧ ×${CFG.powerMult}!`, color: GOLD, dur: 3, prio: 3, avatar: p,
-        voice: pick([`Гайхалтай! ${p.name} ${name} илгээж хүчээ нэмлээ!`, `Ухаан алдмаар! ${p.name} одоо хамгийн хүчтэй нь!`, `${p.name} ${name} илгээлээ! Бүгд болгоомжтой!`]), vprio: 3 });
+        voice: pick([`Гайхалтай! ${p.name} ${name} илгээж хүчээ нэмлээ!`, `Ухаан алдмаар! ${p.name} одоо хамгийн хүчтэй нь!`, `${p.name} ${name} илгээлээ! Бүгд болгоомжтой!`]), vprio: 3, vkey: 'gift_big' });
       this.burst(p.x, p.y, p.color, 40, 1.4);
       this.shake = 0.4;
       audio.play('big');
@@ -283,10 +283,10 @@ const game = {
       if (this.state === STATE.BATTLE && this.stateT >= CFG.lateJoinSec) p.lives = 1;
       if (viaRose && returning) {
         this.announce({ icon: '🌹', text: p.name, sub: 'Сарнайгаар буцаж орлоо!', color: RED, dur: 2, prio: 2,
-          voice: pick([`${p.name} сарнайгаар тулаанд буцаж орлоо!`, `${p.name} эргээд ирлээ!`]), vprio: 2 });
+          voice: pick([`${p.name} сарнайгаар тулаанд буцаж орлоо!`, `${p.name} эргээд ирлээ!`]), vprio: 2, vkey: 'rose_back' });
       } else {
         this.pushFeed(`➕ ${p.name}`, p.color);
-        commentator.say(pick([`${p.name} тулаанд орлоо!`, `Тавтай морил, ${p.name}!`, `${p.name} нэгдлээ!`]), 1);
+        commentator.say(pick([`${p.name} тулаанд орлоо!`, `Тавтай морил, ${p.name}!`, `${p.name} нэгдлээ!`]), 1, 'join');
       }
     } else if (!p.queued) {
       p.queued = true;
@@ -344,20 +344,20 @@ const game = {
     if (p.lives > 0) {
       p.respawnAt = this.t + CFG.respawnDelay;
       this.pushFeed(credited ? `⚔ ${killer.name} ▸ ${p.name}` : `💔 ${p.name} · ${p.lives}❤`, credited ? killer.color : p.color);
-      if (credited) commentator.say(pick([`${killer.name} ${p.name}-г шахаж гаргалаа!`, `Хүчтэй түлхэлт, ${killer.name}!`, `${p.name} нэг амиа алдлаа!`]), 1);
+      if (credited) commentator.say(pick([`${killer.name} ${p.name}-г шахаж гаргалаа!`, `Хүчтэй түлхэлт, ${killer.name}!`, `${p.name} нэг амиа алдлаа!`]), 1, 'hit');
       audio.play('lifeLost');
     } else {
       p.respawnAt = 0;
       this.pushFeed(credited ? `☠ ${killer.name} ▸ ${p.name}` : `☠ ${p.name} хасагдлаа`, credited ? killer.color : p.color);
       this.announce({ icon: '☠', text: p.name, sub: credited ? `${killer.name} шахаж хаслаа!` : 'Тулаанаас хасагдлаа', color: RED, dur: 1.6, prio: 1,
-        voice: credited ? pick([`${killer.name} ${p.name}-г тулаанаас хаслаа!`, `${p.name} хасагдлаа! ${killer.name} маш хүчтэй байна!`]) : `${p.name} хасагдлаа!`, vprio: 2 });
+        voice: credited ? pick([`${killer.name} ${p.name}-г тулаанаас хаслаа!`, `${p.name} хасагдлаа! ${killer.name} маш хүчтэй байна!`]) : `${p.name} хасагдлаа!`, vprio: 2, vkey: 'out' });
       audio.play('elim');
       this.shake = 0.25;
       const left = this.aliveCount();
       if (this.state === STATE.BATTLE && (left === 3 || left === 2) && !this.flags.has('final' + left)) {
         this.flags.add('final' + left);
         this.announce({ icon: '🔥', text: left === 3 ? 'СҮҮЛИЙН 3!' : 'СҮҮЛИЙН 2!', sub: 'Хэн нь ялах вэ?', color: GOLD, dur: 2.2, prio: 2,
-          voice: left === 3 ? 'Сүүлийн гурван тоглогч үлдлээ!' : 'Сүүлийн хоёр! Хэн нь ялах вэ?', vprio: 3 });
+          voice: left === 3 ? 'Сүүлийн гурван тоглогч үлдлээ!' : 'Сүүлийн хоёр! Хэн нь ялах вэ?', vprio: 3, vkey: left === 3 ? 'final3' : 'final2' });
       }
     }
   },
@@ -371,7 +371,7 @@ const game = {
 
   /** Big centre banner + optional voice line. prio 3 jumps ahead, prio 1 is dropped if busy. */
   announce(b) {
-    if (b.voice) commentator.say(b.voice, b.vprio ?? 2);
+    if (b.voice || b.vkey) commentator.say(b.voice, b.vprio ?? 2, b.vkey);
     const item = { dur: 2, prio: 2, ...b, t: 0 };
     if (item.prio <= 1 && (this.banners.length >= 1)) return;
     if (item.prio >= 3) this.banners.unshift(item); else this.banners.push(item);
@@ -390,7 +390,7 @@ const game = {
     audio.intensity = s === STATE.BATTLE ? 1 : 0;
     if (s === STATE.BATTLE) {
       this.announce({ icon: '⚔', text: 'ТУЛААН ЭХЭЛЛЭЭ!', sub: 'Бусдаа талбайгаас шахаж гарга!', color: GOLD, dur: 2.4, prio: 3,
-        voice: pick(['Тулаан эхэллээ! Бусдаа талбайгаас шахаж гарга!', 'Эхэллээ! Хамгийн сүүлд үлдсэн нь ялна!']), vprio: 3 });
+        voice: pick(['Тулаан эхэллээ! Бусдаа талбайгаас шахаж гарга!', 'Эхэллээ! Хамгийн сүүлд үлдсэн нь ялна!']), vprio: 3, vkey: 'start' });
       audio.play('go');
     }
   },
@@ -400,7 +400,7 @@ const game = {
     if (winner) {
       winner.roundsWon++; winner.score += CFG.winScore;
       this.pushFeed(`👑 ${winner.name}`, GOLD);
-      commentator.say(pick([`${winner.name} ялагч боллоо! Баяр хүргэе!`, `Ялагч бол ${winner.name}! Гайхалтай тулаан!`]), 3);
+      commentator.say(pick([`${winner.name} ялагч боллоо! Баяр хүргэе!`, `Ялагч бол ${winner.name}! Гайхалтай тулаан!`]), 3, 'win');
       for (let i = 0; i < 6; i++) this.burst(rand(100, 800), rand(500, 1200), nextColor(), 30, 1.5);
       audio.play('win');
     }
@@ -421,7 +421,7 @@ const game = {
     for (const p of this.players.values()) { p.inArena = false; p.alive = false; p.roundSurvive = 0; }
     for (const p of ps) this.spawn(p, false);
     this.setState(STATE.LOBBY);
-    commentator.say(`${this.round}-р раунд! Follow дараад тоглоомд ороорой!`, 2);
+    commentator.say(`${this.round}-р раунд! Follow дараад тоглоомд ороорой!`, 2, 'newround');
   },
 
   // ── main step ──
@@ -436,12 +436,12 @@ const game = {
         if (this.t - this.lastNag > 35) {
           this.lastNag = this.t;
           this.announce({ icon: '➕', text: 'FOLLOW дараад тогло!', sub: 'Like = томрох · Gift = хүч', color: CYAN, dur: 3, prio: 2,
-            voice: pick(['Follow дараад тоглоомд ороорой! Like дарвал бөмбөлөг чинь томорно!', 'Тоглогч хүлээж байна! Follow дараад нэгдээрэй!']), vprio: 2 });
+            voice: pick(['Follow дараад тоглоомд ороорой! Like дарвал бөмбөлөг чинь томорно!', 'Тоглогч хүлээж байна! Follow дараад нэгдээрэй!']), vprio: 2, vkey: 'lobby' });
         }
       } else {
         const n = Math.ceil(CFG.lobbySec - this.stateT);
         if (n <= 3 && n >= 1 && n !== this.lastBeep) { this.lastBeep = n; audio.play('beep'); }
-        if (n === 5 && !this.flags.has('soon')) { this.flags.add('soon'); commentator.say('Тулаан удахгүй эхэлнэ! Like дараад томор!', 2); }
+        if (n === 5 && !this.flags.has('soon')) { this.flags.add('soon'); commentator.say('Тулаан удахгүй эхэлнэ! Like дараад томор!', 2, 'soon'); }
         if (this.stateT >= CFG.lobbySec) { this.lastBeep = 0; this.setState(STATE.BATTLE); }
       }
     } else if (this.state === STATE.BATTLE) {
@@ -450,16 +450,16 @@ const game = {
       this.arenaR = lerp(ARENA.R0, ARENA.R0 * CFG.arenaMinFrac, s * s * (3 - 2 * s));
       if (this.stateT > CFG.shrinkStartSec && !this.flags.has('shrink')) {
         this.flags.add('shrink'); audio.play('alarm'); audio.intensity = 2;
-        this.announce({ icon: '⚠', text: 'ТАЛБАЙ БАГАСАЖ БАЙНА!', sub: 'Зах руу бүү ойрт!', color: RED, dur: 2.4, prio: 3, voice: 'Анхаар! Талбай багасаж байна!', vprio: 3 });
+        this.announce({ icon: '⚠', text: 'ТАЛБАЙ БАГАСАЖ БАЙНА!', sub: 'Зах руу бүү ойрт!', color: RED, dur: 2.4, prio: 3, voice: 'Анхаар! Талбай багасаж байна!', vprio: 3, vkey: 'shrink' });
       }
       const left = CFG.roundMaxSec - this.stateT;
-      if (left < 30 && !this.flags.has('30s')) { this.flags.add('30s'); commentator.say('Гучин секунд үлдлээ!', 2); }
+      if (left < 30 && !this.flags.has('30s')) { this.flags.add('30s'); commentator.say('Гучин секунд үлдлээ!', 2, 'sec30'); }
       if (left < 10 && left > 0) { const n = Math.ceil(left); if (n !== this.lastBeep) { this.lastBeep = n; audio.play('tick'); } }
       // leader commentary
       let lead = null; for (const p of this.arena) if (p.alive && (!lead || p.r > lead.r)) lead = p;
       if (lead && lead !== this.leader && this.stateT > 6 && this.t - this.leaderAnnouncedAt > 14 && lead.r > CFG.baseRadius * 1.6) {
         this.leaderAnnouncedAt = this.t;
-        commentator.say(pick([`${lead.name} хамгийн том бөмбөлөг боллоо!`, `Одоо ${lead.name} тэргүүлж байна!`]), 1);
+        commentator.say(pick([`${lead.name} хамгийн том бөмбөлөг боллоо!`, `Одоо ${lead.name} тэргүүлж байна!`]), 1, 'leader');
       }
       this.leader = lead;
       if (alive <= 1 && this.stateT > 2) this.endRound(this.arena.find(p => p.inPlay));
@@ -1057,7 +1057,7 @@ const bridge = {
     clearTimeout(this.timer);
     try { this.ws = new WebSocket(this.url); } catch { return this.schedule(); }
     setStatus('Холбогдож байна…', 'warn');
-    this.ws.onopen = () => { this.retry = 0; this.ws.send(JSON.stringify({ type: 'hello', lastSeq: this.lastSeq })); setStatus('Bridge-тэй холбогдлоо', 'ok'); };
+    this.ws.onopen = () => { this.retry = 0; commentator.loadClips(); this.ws.send(JSON.stringify({ type: 'hello', lastSeq: this.lastSeq })); setStatus('Bridge-тэй холбогдлоо', 'ok'); };
     this.ws.onmessage = (m) => {
       let msg; try { msg = JSON.parse(m.data); } catch { return; }
       if (msg.type === 'status') {
@@ -1142,6 +1142,7 @@ function initPanel() {
   $('safeZone').onclick = () => { showSafe = !showSafe; $('safeZone').classList.toggle('on', showSafe); };
   $('safeZone').classList.toggle('on', showSafe);
   initAudioPanel();
+  initRecorder();
   buildBalance();
 }
 
@@ -1183,6 +1184,95 @@ function updateVoiceInfo() {
   if (!('speechSynthesis' in window)) { el.textContent = 'Энэ браузерт TTS байхгүй — Azure горимыг ашиглана уу'; el.className = 'status warn'; }
   else if (v && /^mn/i.test(v.lang)) { el.textContent = `Монгол хоолой: ${v.name}`; el.className = 'status ok'; }
   else { el.textContent = `Монгол хоолой олдсонгүй → ${v ? v.name : 'үндсэн хоолой'} уншина. Жинхэнэ монгол дуудлагад Azure горим зөвлөнө.`; el.className = 'status warn'; }
+}
+
+// ── recorder: the streamer records commentary lines in their own voice ──
+const recorder = { stream: null, mr: null, key: '', timer: null };
+function voiceBase() { return commentator.ttsBase || (location.protocol.startsWith('http') ? location.origin : ''); }
+function initRecorder() {
+  const S = audio.settings;
+  const cb = $('useRecorded'); cb.checked = S.useRecorded;
+  cb.onchange = () => { S.useRecorded = cb.checked; audio.save(); };
+  commentator.loadClips().then(renderVoiceList);
+  if (voiceBase()) setInterval(() => commentator.loadClips(), 20000); // OBS copy picks up new recordings
+}
+function renderVoiceList() {
+  const box = $('voiceList'); box.innerHTML = '';
+  if (!voiceBase()) { box.innerHTML = '<div class="status warn">Хоолой бичихийн тулд тоглоомыг start.bat-аар (http://localhost:8787) нээнэ үү.</div>'; return; }
+  for (const [key, label, line] of window.LBLAudio.VOICE_LINES) {
+    const files = commentator.clips[key] || [];
+    const row = document.createElement('div'); row.className = 'vrow';
+    row.innerHTML = `<div class="top"><span class="name"></span><span class="cnt ${files.length ? 'has' : ''}">${files.length ? '✓ ' + files.length : 'бичээгүй'}</span>
+      <button class="rec">● Бичих</button><button class="play" ${files.length ? '' : 'disabled'}>▶</button><button class="del" ${files.length ? '' : 'disabled'} title="Сүүлийн бичлэгийг устгах">🗑</button></div>
+      <div class="say"></div>`;
+    row.querySelector('.name').textContent = label;
+    row.querySelector('.say').textContent = '“' + line + '”';
+    const recBtn = row.querySelector('.rec');
+    if (recorder.key === key) { recBtn.classList.add('on'); recBtn.textContent = '■ Зогсоох'; }
+    recBtn.onclick = () => recorder.key === key ? stopRecording() : startRecording(key);
+    row.querySelector('.play').onclick = () => { audio.unlock(); commentator.stop(); commentator.say(line, 3, key); };
+    row.querySelector('.del').onclick = async () => {
+      if (!confirm(`"${label}" — сүүлийн бичлэгийг устгах уу?`)) return;
+      await fetch(`${voiceBase()}/voices/${encodeURIComponent(files[files.length - 1])}`, { method: 'DELETE' });
+      await commentator.loadClips(); renderVoiceList();
+    };
+    box.append(row);
+  }
+}
+async function startRecording(key) {
+  if (recorder.key) stopRecording();
+  try {
+    if (!recorder.stream) recorder.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch (e) { alert('Микрофон ашиглах зөвшөөрөл өгөөгүй байна: ' + e.message); return; }
+  commentator.stop();
+  const chunks = [];
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '';
+  const mr = new MediaRecorder(recorder.stream, mime ? { mimeType: mime } : undefined);
+  mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  mr.onstop = () => uploadRecording(key, new Blob(chunks, { type: mr.mimeType || 'audio/webm' }));
+  recorder.mr = mr; recorder.key = key;
+  mr.start();
+  recorder.timer = setTimeout(stopRecording, 10000);   // safety: max 10 s per line
+  renderVoiceList();
+}
+function stopRecording() {
+  clearTimeout(recorder.timer);
+  if (recorder.mr && recorder.mr.state !== 'inactive') recorder.mr.stop();
+  recorder.key = ''; recorder.mr = null;
+  renderVoiceList();
+}
+/** Trim silence at both ends, normalise loudness, encode as WAV, upload to the bridge. */
+async function uploadRecording(key, blob) {
+  let body = blob, type = blob.type;
+  try {
+    audio.init();
+    const buf = await audio.ctx.decodeAudioData(await blob.arrayBuffer());
+    const d = buf.getChannelData(0), sr = buf.sampleRate;
+    let peak = 0; for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+    const th = Math.max(0.02, peak * 0.08);
+    let a = 0, b = d.length - 1;
+    while (a < d.length && Math.abs(d[a]) < th) a++;
+    while (b > a && Math.abs(d[b]) < th) b--;
+    a = Math.max(0, a - Math.floor(sr * 0.08)); b = Math.min(d.length - 1, b + Math.floor(sr * 0.25));
+    if (b - a < sr * 0.2) { alert('Дуу бичигдсэнгүй. Микрофоноо шалгаад дахин оролдоно уу.'); return; }
+    const gain = peak > 0 ? Math.min(4, 0.9 / peak) : 1;
+    const n = b - a + 1, out = new DataView(new ArrayBuffer(44 + n * 2));
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) out.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); out.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true);
+    out.setUint32(24, sr, true); out.setUint32(28, sr * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true);
+    w(36, 'data'); out.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) {
+      const fade = Math.min(1, i / (sr * 0.01), (n - 1 - i) / (sr * 0.03)); // tiny fades, no clicks
+      out.setInt16(44 + i * 2, clamp(d[a + i] * gain * fade, -1, 1) * 0x7fff, true);
+    }
+    body = new Blob([out], { type: 'audio/wav' }); type = 'audio/wav';
+  } catch (e) { console.warn('trim failed, uploading raw', e); }
+  const r = await fetch(`${voiceBase()}/voices/${key}`, { method: 'POST', headers: { 'Content-Type': type }, body }).catch(() => null);
+  if (!r || !r.ok) { alert('Хадгалж чадсангүй. Bridge (start.bat) ажиллаж байгаа эсэхийг шалгана уу.'); return; }
+  await commentator.loadClips();
+  renderVoiceList();
+  commentator.say('', 3, key); // play it back once
 }
 
 let botN = 0;

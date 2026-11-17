@@ -46,6 +46,18 @@ button.on { background: var(--accent); border-color: var(--accent); }
 .inline { display: flex; gap: 6px; align-items: center; }
 button.wide { width: 100%; text-align: center; margin-bottom: 8px; }
 #voiceInfo { margin-top: 6px; }
+.check { display: flex; gap: 8px; align-items: center; margin: 8px 0; font-size: 13px; }
+.voice-list { display: flex; flex-direction: column; gap: 6px; }
+.vrow { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; }
+.vrow .top { display: flex; align-items: center; gap: 6px; }
+.vrow .name { flex: 1; font-weight: 600; font-size: 13px; }
+.vrow .cnt { font-size: 11px; color: var(--muted); }
+.vrow .cnt.has { color: #6dffb0; }
+.vrow .say { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.vrow button { padding: 4px 8px; font-size: 12px; }
+.vrow button.rec { background: #3a1020; border-color: #ff3d7f; }
+.vrow button.rec.on { background: #ff2d55; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .55; } }
 
 body.overlay #panel { display: none; }
 body.overlay { background: transparent; }
