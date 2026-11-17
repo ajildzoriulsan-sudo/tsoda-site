@@ -1,0 +1,15 @@
+{
+  "name": "land-battle-live-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Forwards TikTok LIVE events (follow, like, gift, comment, viewers) to the LAND BATTLE LIVE game over WebSocket",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "tiktok-live-connector": "2.1.0",
+    "ws": "8.18.0"
+  }
+}
