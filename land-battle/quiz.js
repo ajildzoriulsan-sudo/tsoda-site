@@ -703,6 +703,77 @@ function drawCash(x, y, r, alpha = 1, burn = 0) {
   ctx.globalAlpha = 1;
 }
 
+/** Mongolian painted chest (авдар), seen slightly from above. burn 0..1 chars it, glow marks the right answer. */
+function drawChest(cx, cy, col, burn, glow) {
+  if (glow) {
+    const g = ctx.createRadialGradient(cx, cy - 20, 20, cx, cy - 20, 170);
+    g.addColorStop(0, `rgba(255,215,100,${0.55 + 0.25 * pulse(6)})`); g.addColorStop(1, 'rgba(255,215,100,0)');
+    ctx.fillStyle = g; ctx.fillRect(cx - 170, cy - 190, 340, 340);
+  }
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(cx + 8, cy + 54, 108, 16, 0, 0, TAU); ctx.fill();
+  // front face
+  const fg = ctx.createLinearGradient(0, cy - 50, 0, cy + 50);
+  fg.addColorStop(0, '#2385a1'); fg.addColorStop(1, '#114a5c');
+  roundRect(cx - 100, cy - 50, 200, 100, 8); ctx.fillStyle = fg; ctx.fill();
+  // lid (top face)
+  ctx.beginPath(); ctx.moveTo(cx - 100, cy - 50); ctx.lineTo(cx + 100, cy - 50); ctx.lineTo(cx + 84, cy - 74); ctx.lineTo(cx - 84, cy - 74); ctx.closePath();
+  ctx.fillStyle = '#2f9cba'; ctx.fill();
+  ctx.strokeStyle = hsl(col); ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx - 100, cy - 50); ctx.lineTo(cx + 100, cy - 50); ctx.stroke();
+  // gold trim + ornament (simplified өлзий knot and corner brackets)
+  ctx.strokeStyle = '#e8c547'; ctx.lineWidth = 3;
+  roundRect(cx - 92, cy - 42, 184, 84, 6); ctx.stroke();
+  ctx.save(); ctx.translate(cx, cy + 2); ctx.rotate(Math.PI / 4);
+  ctx.strokeRect(-17, -17, 34, 34); ctx.strokeRect(-9, -9, 18, 18); ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy + 2, 30, 0, TAU); ctx.stroke();
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    const ex = cx + sx * 80, ey = cy + sy * 30;
+    ctx.beginPath(); ctx.moveTo(ex, ey - sy * 14); ctx.lineTo(ex, ey); ctx.lineTo(ex - sx * 14, ey); ctx.stroke();
+  }
+  if (burn > 0) {                                    // charred
+    roundRect(cx - 100, cy - 74, 200, 124, 8); ctx.fillStyle = `rgba(20,8,4,${0.65 * burn})`; ctx.fill();
+  }
+}
+
+/** MONEY mode: four answer stations in an arc — screen with the answer above a chest with the money on it. */
+function drawStations(q, rev, sh, pl, total, chase) {
+  const xs = [148, 404, 676, 932], ys = [1010, 958, 958, 1010];
+  q.opts.forEach((o, i) => {
+    const cx = xs[i], cy = ys[i], col = OPT[i];
+    const removed = quiz.removed.has(i), isRight = i === q.correct, wrong = rev && !isRight;
+    ctx.globalAlpha = removed ? 0.35 : 1;
+    // answer screen
+    const sw = 238, shh = 104, sx = cx - sw / 2, sy = cy - 252;
+    roundRect(sx, sy, sw, shh, 16); ctx.fillStyle = 'rgba(8,6,20,.94)'; ctx.fill();
+    ctx.lineWidth = rev && isRight ? 6 : 3;
+    ctx.strokeStyle = rev && isRight ? `rgba(109,255,176,${0.7 + 0.3 * pulse(8)})` : wrong ? '#ff4d6d' : hsl(col); ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx + 4, sy + 4, 22, 0, TAU); ctx.fillStyle = hsl(col); ctx.fill();
+    text(String(i + 1), sx + 4, sy + 6, 28, '#fff', 'center', 900);
+    const lines = wrap(o, sw - 28, 26, 2, 800);
+    lines.forEach((l, k) => text(l, cx, sy + shh / 2 + (k - (lines.length - 1) / 2) * 30 + 2, 26, '#fff', 'center', 800));
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(cx - 3, sy + shh, 6, 28);
+    drawChest(cx, cy, col, wrong ? chase : 0, rev && isRight);
+    // money pile on the lid: rows of 5 / 4 / 3 bundles
+    const f = sh[i] / total, n = sh[i] ? clamp(Math.round(f * 12), 1, 12) : 0;
+    for (let k = 0; k < n; k++) {
+      const row = k < 5 ? 0 : k < 9 ? 1 : 2, idx = row === 0 ? k : row === 1 ? k - 5 : k - 9, cnt = [5, 4, 3][row];
+      let bx = cx + (idx - (cnt - 1) / 2) * 34, by = cy - 70 - row * 15, al = 1;
+      if (wrong) { by -= chase * 30; al = 1 - chase; }
+      if (al > 0.02) drawCash(bx, by, 12, al, wrong ? chase : 0);
+    }
+    if (wrong && chase < 1 && n) {
+      for (let k = 0; k < 3; k++) text('🔥', cx - 50 + k * 50, cy - 86 - Math.abs(Math.sin(quiz.t * 9 + k)) * 10, 38 * (0.6 + chase * 0.6), '#fff', 'center', 400);
+      if (Math.random() < 0.5) quiz.particles.push({ x: cx + rand(-70, 70), y: cy - 80, vx: rand(-30, 30), vy: rand(-160, -60), life: 0.8, t: 0, r: rand(3, 6), color: { h: 25, s: 100, l: 55 } });
+    }
+    const shown = wrong ? sh[i] * (1 - chase) : sh[i];
+    text(`💵 ${TH.amount(shown)}`, cx, cy + 76, 24, '#fff', 'center', 900, 5);
+    text(`${pl[i]} хүн · ${Math.round(f * 100)}%`, cx, cy + 102, 18, 'rgba(255,255,255,.8)', 'center', 800, 4);
+    if (removed) text('✖', cx, cy, 90, '#ff4d6d', 'center', 900, 8);
+    if (rev && isRight) text('✅', cx, sy - 20, 40, '#fff', 'center', 400);
+    ctx.globalAlpha = 1;
+  });
+}
+
 function drawSheep(x, y, r, alpha = 1) {
   ctx.globalAlpha *= alpha;
   ctx.fillStyle = '#f4f1e8';
@@ -717,7 +788,8 @@ function drawPens(q, oy, oh, gap) {
   const { sh, pl } = quiz.placed();
   const total = Math.max(1, sh.reduce((a, b) => a + b, 0));
   const chase = rev ? clamp(quiz.phaseT / 2.4, 0, 1) : 0;
-  q.opts.forEach((o, i) => {
+  if (MONEY) drawStations(q, rev, sh, pl, total, chase);
+  else q.opts.forEach((o, i) => {
     const y = oy + i * (oh + gap);
     const removed = quiz.removed.has(i), isRight = i === q.correct, wrong = rev && !isRight;
     const col = OPT[i];
