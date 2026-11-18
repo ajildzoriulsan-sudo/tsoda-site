@@ -315,7 +315,10 @@ const safeKey = (s) => /^[a-z0-9_-]{1,40}$/i.test(String(s || ''));
 // ───────── Donation goal (e.g. "publish the МАЛЧИН game"): every gift fills the bar ─────────
 // Counted here, once, for all windows. Mock mode uses a separate test goal that is never saved.
 const GOAL_KEY = MOCK ? 'goal_test' : 'goal';
-const DEFAULT_GOAL = { title: 'МАЛЧИН тоглоомыг гаргая!', sub: 'Хандив өгсөн хүн бүрийн нэр тоглоомд мөнхлөгдөнө', target: 10000, enabled: true };
+const DEFAULT_GOAL = { title: 'МАЛЧИН тоглоомыг гаргая!', sub: 'Хандив өгсөн хүн бүрийн нэр тоглоомд мөнхлөгдөнө', target: 10000, enabled: true,
+  gameName: 'МАЛЧИН',
+  info: 'Монгол хөгжүүлэгчийн бүтээж буй мобайл тоглоом\nТаны дэмжлэгээр гарна\nХандив өгсөн хүн бүрийн нэр тоглоомд мөнхлөгдөнө',
+  every: 240 };
 function goalDoc() {
   store.docs[GOAL_KEY] = store.docs[GOAL_KEY] || { total: 0, donors: {}, log: [] };
   return store.docs[GOAL_KEY];
@@ -356,7 +359,9 @@ function handleApi(req, res, route, query) {
       if (!b) return sendJson(res, 400, {});
       const c = goalConfig();
       store.docs.goalConfig = { title: String(b.title ?? c.title).slice(0, 80), sub: String(b.sub ?? c.sub).slice(0, 120),
-        target: Math.max(1, Number(b.target) || c.target), enabled: b.enabled === undefined ? c.enabled : !!b.enabled };
+        target: Math.max(1, Number(b.target) || c.target), enabled: b.enabled === undefined ? c.enabled : !!b.enabled,
+        gameName: String(b.gameName ?? c.gameName).slice(0, 40), info: String(b.info ?? c.info).slice(0, 600),
+        every: Math.max(0, Number(b.every ?? c.every) || 0) };
       saveStore(); goalChanged(); sendJson(res, 200, goalSummary());
     });
   }

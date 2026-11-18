@@ -478,7 +478,7 @@ const game = {
       if (alive <= 1 && this.stateT > 2) this.endRound(this.arena.find(p => p.inPlay));
       else if (left <= 0) this.endRound(this.arena.filter(p => p.alive).sort((a, b) => b.r - a.r)[0]);
     } else if (this.state === STATE.WINNER) {
-      if (this.stateT >= CFG.winnerSec) this.newRound();
+      if (this.stateT >= CFG.winnerSec && !(window.LBLGoal && LBLGoal.trySpotlight(t => commentator.say(t, 3, 'goal_info')))) this.newRound();
     }
 
     // likes → growth through a per-user token bucket (anti-flood)
@@ -1070,6 +1070,7 @@ function render() {
   drawSide();
   drawBanner();
   drawWinner();
+  if (window.LBLGoal) LBLGoal.drawSpotlight(ctx, 30, 425, W - 60, SAFE.bottom - 425);
   drawSafeZones();
   if (audioHint && !audio.running) {
     roundRect(330, 1220, 420, 60, 30); ctx.fillStyle = 'rgba(255,45,85,.9)'; ctx.fill();

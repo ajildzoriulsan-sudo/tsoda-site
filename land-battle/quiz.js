@@ -309,7 +309,7 @@ const quiz = {
       if (left < 5.5 && !this.flags.has('5s')) { this.flags.add('5s'); audio.intensity = 2; commentator.say('Таван секунд үлдлээ!', 2, 'q_5s'); }
       if (left <= 5 && left > 0) { const n = Math.ceil(left); if (n !== this.lastBeep) { this.lastBeep = n; audio.play(n <= 3 ? 'beep' : 'tick'); } }
       if (left <= 0) this.reveal();
-    } else if (P === PHASE.REVEAL) { if (this.phaseT >= CFG.revealSec) this.afterReveal(); }
+    } else if (P === PHASE.REVEAL) { if (this.phaseT >= CFG.revealSec && !(window.LBLGoal && LBLGoal.trySpotlight(t => commentator.say(t, 3, 'goal_info')))) this.afterReveal(); }
     else if (P === PHASE.BOARD) { if (this.phaseT >= CFG.boardSec) this.startIntro(); }
     else if (P === PHASE.FINAL) {
       if (this.phaseT >= CFG.finalSec) {
@@ -573,6 +573,7 @@ function render() {
   ctx.drawImage(bgCanvas, 0, 0, W, H);
   drawQuestion();
   drawBoard();
+  if (window.LBLGoal) LBLGoal.drawSpotlight(ctx, 30, AREA.top - 10, W - 60, AREA.bottom - AREA.top + 10);
   for (const q of quiz.particles) {
     const a = 1 - q.t / q.life; ctx.globalAlpha = a; ctx.fillStyle = hsl(q.color, 10);
     if (q.confetti) { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.t * 6 + q.r); ctx.fillRect(-q.r, -q.r / 2, q.r * 2, q.r); ctx.restore(); }
@@ -628,6 +629,7 @@ const QUIZ_LINES = [
   ['q_help',     'Gift: буруу арилгах',  'Баярлалаа! Бүгдэд нэг буруу хариулт арилав!'],
   ['q_cat',      'Сэдэв сонгох',         'Дараагийн асуултын сэдвийг коммент хэсэгт бичээрэй!'],
   ['q_board',    'Онооны самбар',        'Онооны самбарыг харцгаая!'],
+  ['goal_info',  'Тоглоомын танилцуулга', 'МАЛЧИН тоглоомын тухай... (өөрийн танилцуулгаа бичнэ)'],
   ['goal_step',  'Зорилгын 25/50/75%',   'Зорилгын нэг хэсэг биеллээ! Баярлалаа!'],
   ['goal_done',  'Зорилго биелэх',       'Зорилго биеллээ! Бүгдэд баярлалаа!'],
   ['q_champion', 'Тэмцээн өндөрлөх',     'Тэмцээн өндөрлөлөө! Баяр хүргэе!'],

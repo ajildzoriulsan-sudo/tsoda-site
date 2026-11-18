@@ -369,7 +369,7 @@ const race = {
     } else if (P === PHASE.RACE) {
       this.simulate(dt);
     } else if (P === PHASE.RESULT) {
-      if (this.phaseT >= CFG.resultSec) {
+      if (this.phaseT >= CFG.resultSec && !(window.LBLGoal && LBLGoal.trySpotlight(t => commentator.say(t, 3, 'goal_info')))) {   // МАЛЧИН spotlight between races
         if (this.round >= 5) {
           this.setPhase(PHASE.FINALE);
           const top = this.topViewers(1)[0];
@@ -1137,6 +1137,7 @@ function render() {
   ctx.restore();
   drawMinimap();
   drawCards();
+  if (window.LBLGoal) LBLGoal.drawSpotlight(ctx, 30, TRACK.top - 20, W - 60, SAFE.bottom - TRACK.top + 14);
   drawHeader();
   drawBanner();
   if (race.flashScreen > 0) { ctx.fillStyle = `rgba(255,255,255,${race.flashScreen * 0.6})`; ctx.fillRect(0, SAFE.top, W, SAFE.bottom - SAFE.top); }
@@ -1193,6 +1194,7 @@ const RACE_LINES = [
   ['r_win',      'Түрүүлэх',            'Түрүү морь бариандаа орлоо!'],
   ['r_buureg',   'Бүүрэг',              'Бүүрэг ч гэсэн баатар!'],
   ['r_fav',      'Аварга морь гарах',   'Аварга морь энэ удаа ч гарлаа!'],
+  ['goal_info',  'Тоглоомын танилцуулга', 'МАЛЧИН тоглоомын тухай... (өөрийн танилцуулгаа бичнэ)'],
   ['goal_step',  'Зорилгын 25/50/75%',   'Зорилгын нэг хэсэг биеллээ! Баярлалаа!'],
   ['goal_done',  'Зорилго биелэх',       'Зорилго биеллээ! Бүгдэд баярлалаа!'],
   ['r_champion', 'Наадам өндөрлөх',     'Наадам өндөрлөлөө! Баяр хүргэе!'],

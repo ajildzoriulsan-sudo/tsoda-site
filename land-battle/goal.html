@@ -35,12 +35,15 @@
   .new { animation: pop .9s ease; }
   @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } }
   .empty { color: var(--muted); }
+  .about { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+  .about b { color: var(--gold); font-size: 20px; }
+  .about ul { margin: 6px 0 0; padding-left: 20px; }
   .recent { font-size: 15px; color: var(--muted); }
   .recent b { color: var(--text); }
   #panel { width: 340px; flex: none; background: #150f2c; border-left: 1px solid var(--line); padding: 18px; }
   #panel h3 { margin: 0 0 12px; color: var(--gold); }
   label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
-  input[type=text], input[type=number] { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }
+  input[type=text], input[type=number], textarea { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }
   .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
   button, a.btn { background: #2a1f52; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; text-decoration: none; }
   button.primary { background: #ff2d55; border-color: #ff2d55; }
@@ -58,6 +61,7 @@
         <h1 id="title">МАЛЧИН тоглоомыг гаргая!</h1>
         <div class="sub" id="sub"></div>
       </div>
+      <div class="about" id="about"></div>
       <div class="bar" id="bar"><div class="fill" id="fill"></div><span id="pct">0%</span></div>
       <div class="nums"><div><b id="total">0</b> / <span id="target">0</span> 💎</div><div><b id="count">0</b> дэмжигч</div></div>
       <div class="recent" id="recent"></div>
@@ -71,6 +75,9 @@
     <label for="cSub">Тайлбар</label><input type="text" id="cSub">
     <label for="cTarget">Зорилго (алмаз 💎)</label><input type="number" id="cTarget" min="1">
     <label><input type="checkbox" id="cEnabled"> Тоглоомуудын дээд хэсэгт харуулах</label>
+    <label for="cGame">Тоглоомын нэр</label><input type="text" id="cGame">
+    <label for="cInfo">Тоглоомын тухай (мөр бүр нэг санаа, 5 хүртэл)</label><textarea id="cInfo" rows="5"></textarea>
+    <label for="cEvery">Танилцуулга хэдэн секунд тутам (раунд хооронд, 0 = унтраах)</label><input type="number" id="cEvery" min="0">
     <div class="row"><button class="primary" id="save">Хадгалах</button></div>
     <div class="status" id="status"></div>
     <h3 style="margin-top:22px">Нэрсийн жагсаалт</h3>
@@ -99,6 +106,8 @@
   function render(g) {
     const c = g.config, frac = Math.min(1, g.total / Math.max(1, c.target));
     $('title').textContent = c.title; $('sub').textContent = c.sub || '';
+    const info = String(c.info || '').split('\n').map(s => s.trim()).filter(Boolean);
+    $('about').innerHTML = `<b>🐑 ${esc(c.gameName || '')}</b><ul>${info.map(l => `<li>${esc(l)}</li>`).join('')}</ul>`;
     $('fill').style.width = (frac * 100).toFixed(1) + '%';
     $('pct').textContent = Math.floor(frac * 100) + '%';
     $('total').textContent = fmt(g.total); $('target').textContent = fmt(c.target); $('count').textContent = g.count;
@@ -113,14 +122,14 @@
           <div class="who"><div class="n">${i < 3 ? ['🥇', '🥈', '🥉'][i] + ' ' : ''}${esc(d.name)}</div><div class="d">${fmt(d.diamonds)} 💎</div></div></div>`;
       }).join('') + (g.count > g.top.length ? `<div class="donor"><div class="who"><div class="n">+${g.count - g.top.length} дэмжигч</div></div></div>` : '');
     } else for (const d of g.top) seen.add(d.id);
-    if (!formFilled) { formFilled = true; $('cTitle').value = c.title; $('cSub').value = c.sub || ''; $('cTarget').value = c.target; $('cEnabled').checked = c.enabled; }
+    if (!formFilled) { formFilled = true; $('cTitle').value = c.title; $('cSub').value = c.sub || ''; $('cTarget').value = c.target; $('cEnabled').checked = c.enabled; $('cGame').value = c.gameName || ''; $('cInfo').value = c.info || ''; $('cEvery').value = c.every ?? 240; }
     last = g;
   }
   const load = () => fetch(base + '/api/goal').then(r => r.json()).then(render).catch(() => { $('status').textContent = 'Bridge (start.bat) ажиллахгүй байна'; });
   load(); setInterval(load, 2000);
 
   const post = (path, body) => fetch(base + '/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then(r => r.json());
-  $('save').onclick = () => post('goal/config', { title: $('cTitle').value, sub: $('cSub').value, target: +$('cTarget').value, enabled: $('cEnabled').checked })
+  $('save').onclick = () => post('goal/config', { title: $('cTitle').value, sub: $('cSub').value, target: +$('cTarget').value, enabled: $('cEnabled').checked, gameName: $('cGame').value, info: $('cInfo').value, every: +$('cEvery').value })
     .then(g => { render(g); $('status').textContent = 'Хадгаллаа ✓'; setTimeout(() => $('status').textContent = '', 1500); });
   $('test').onclick = () => post('goal/test', { name: $('tName').value || 'Туршилт', diamonds: 50 }).then(render);
   $('reset').onclick = () => { if (confirm('Бүх хандив, нэрсийг тэглэх үү? Буцаах боломжгүй.')) post('goal/reset').then(g => { seen = new Set(); render(g); }); };
