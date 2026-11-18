@@ -253,8 +253,17 @@ const quiz = {
     const tier = /rose/i.test(name) || dia === 1 ? 0 : dia < 100 ? 1 : dia < 1000 ? 2 : 3;
     const live = this.phase === PHASE.QUESTION;
     this.sponsor = v;
-    if (tier === 0 && HERD) {                           // 🌹 in herd/money: a shout-out for the sender
-      this.flash.rose = this.t; this.pushFeed(`🌹 ${v.name} — баярлалаа!`, PINK); audio.play('rose'); return;
+    if (HERD) {
+      // herd/money: gifts never change the game — they are an investment in the МАЛЧИН goal (counted by the bridge)
+      const gname = (window.LBLGoal && LBLGoal.data && LBLGoal.data.config.gameName) || 'МАЛЧИН';
+      this.flash[tier === 0 ? 'rose' : 'gift'] = this.t;
+      this.pushFeed(`${tier === 0 ? '🌹' : '🎁'} ${v.name} → ${gname}-д хөрөнгө оруулалт`, tier >= 2 ? GOLD : PINK);
+      if (tier === 0) { audio.play('rose'); return; }
+      this.announce({ avatar: v, text: `Баярлалаа, ${v.name}!`, sub: `${name} · ${gname} тоглоомд хөрөнгө орууллаа · нэр тань мөнхлөгдөнө`,
+        color: tier >= 2 ? GOLD : GREEN, dur: tier >= 2 ? 3 : 2.2, prio: tier >= 2 ? 3 : 2,
+        voice: `Баярлалаа ${v.name}! ${gname} тоглоомд хөрөнгө орууллаа. Таны нэр тоглоомд мөнхлөгдөнө!`, vprio: 2, vkey: 'm_invest' });
+      audio.play(tier >= 2 ? 'big' : 'gift');
+      return;
     }
     if (tier === 0) {                                   // 🌹 adds to the shared like goal
       const add = 30 * count;
@@ -582,9 +591,9 @@ function drawHeader() {
   }
   const cards = [
     HERD ? ['answer', '💬', '1 60 3 40', TH.card, CYAN] : ['answer', '💬', '1–4 БИЧ', 'Хариулах', CYAN],
-    HERD ? ['rose', '🌹', 'ROSE', 'Нэр тань гарна', PINK] : ['like', '❤', 'LIKE', 'Хамтдаа 50/50', RED],
-    HERD ? ['gift', '🎁', 'GIFT', 'Бүгдэд +5 сек', GREEN] : ['rose', '🌹', 'ROSE', 'Хамтын тусламж', PINK],
-    HERD ? ['gift', '💎', '100💎+', 'Буруу 1 хаагдана', GOLD] : ['gift', '🎁', 'GIFT', '+5с · 50/50', GOLD],
+    HERD ? ['rose', '🌹', 'ROSE', 'Хөрөнгө оруулалт', PINK] : ['like', '❤', 'LIKE', 'Хамтдаа 50/50', RED],
+    HERD ? ['gift', '🎁', 'GIFT', 'МАЛЧИН-д хөрөнгө', GOLD] : ['rose', '🌹', 'ROSE', 'Хамтын тусламж', PINK],
+    HERD ? ['goal', '🐑', 'ХАНДИВ', 'Нэр тань үлдэнэ', GREEN] : ['gift', '🎁', 'GIFT', '+5с · 50/50', GOLD],
   ];
   const cw = 252, chh = 88, cy = 234, gap = 8;
   cards.forEach(([key, ic, title, desc, col], i) => {
@@ -1078,6 +1087,7 @@ const QUIZ_LINES = [
   ['goal_info',  'Тоглоомын танилцуулга', 'МАЛЧИН тоглоомын тухай... (өөрийн танилцуулгаа бичнэ)'],
   ['goal_step',  'Зорилгын 25/50/75%',   'Зорилгын нэг хэсэг биеллээ! Баярлалаа!'],
   ['goal_done',  'Зорилго биелэх',       'Зорилго биеллээ! Бүгдэд баярлалаа!'],
+  ['m_invest',   'Gift: хөрөнгө оруулалт', 'Баярлалаа! Таны нэр тоглоомд мөнхлөгдөнө!'],
   ['m_suspense', 'Мөнгө: хүлээлт',      'Мөнгөө харцгаая...'],
   ['h_topic',    'Сэдэв сонгох (сүрэг)', 'Сэдвээ сонгоцгооё! Коммент хэсэгт нэг эсвэл хоёр гэж бичээрэй!'],
   ['q_champion', 'Тэмцээн өндөрлөх',     'Тэмцээн өндөрлөлөө! Баяр хүргэе!'],
