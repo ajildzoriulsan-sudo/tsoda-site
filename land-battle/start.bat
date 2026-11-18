@@ -45,18 +45,20 @@ echo   Эхлээд TikTok дээр LIVE эхлүүлнэ үү.
 echo.
 echo   [1]  МОРИН УРАЛДААН   - TikTok LIVE
 echo   [2]  АСУУЛТ ХАРИУЛТ   - TikTok LIVE
-echo   [3]  ГАЗРЫН ТУЛААН    - TikTok LIVE
-echo   [4]  Туршилт - TikTok-гүй, хуурамч үзэгчид
-echo   [5]  TikTok нэр солих
-echo   [6]  Azure монгол хоолойн түлхүүр оруулах
-echo   [7]  Гарах
+echo   [3]  СҮРГЭЭ АВАР      - TikTok LIVE
+echo   [4]  ГАЗРЫН ТУЛААН    - TikTok LIVE
+echo   [5]  Туршилт - TikTok-гүй, хуурамч үзэгчид
+echo   [6]  TikTok нэр солих
+echo   [7]  Azure монгол хоолойн түлхүүр оруулах
+echo   [8]  Гарах
 echo.
-choice /c 1234567 /n /m "  Сонголт [1-7]: "
-if errorlevel 7 goto end
-if errorlevel 6 goto setazure
-if errorlevel 5 goto setuser
-if errorlevel 4 goto mock_pick
-if errorlevel 3 goto live_battle
+choice /c 12345678 /n /m "  Сонголт [1-8]: "
+if errorlevel 8 goto end
+if errorlevel 7 goto setazure
+if errorlevel 6 goto setuser
+if errorlevel 5 goto mock_pick
+if errorlevel 4 goto live_battle
+if errorlevel 3 goto live_herd
 if errorlevel 2 goto live_quiz
 if errorlevel 1 goto live_race
 goto menu
@@ -67,15 +69,20 @@ goto live
 :live_quiz
 set "PAGE=quiz.html"
 goto live
+:live_herd
+set "PAGE=herd.html"
+goto live
 :live_battle
 set "PAGE="
 goto live
 
 :mock_pick
 echo.
-echo   Аль тоглоомыг турших вэ?  [1] Морин уралдаан   [2] Асуулт хариулт   [3] Газрын тулаан
-choice /c 123 /n /m "  Сонголт [1-3]: "
-if errorlevel 3 set "PAGE="
+echo   Аль тоглоомыг турших вэ?  [1] Морин уралдаан  [2] Асуулт хариулт  [3] Сүргээ авар  [4] Газрын тулаан
+choice /c 1234 /n /m "  Сонголт [1-4]: "
+if errorlevel 4 set "PAGE="
+if errorlevel 4 goto mock
+if errorlevel 3 set "PAGE=herd.html"
 if errorlevel 3 goto mock
 if errorlevel 2 set "PAGE=quiz.html"
 if errorlevel 2 goto mock

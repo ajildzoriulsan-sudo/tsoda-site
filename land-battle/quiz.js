@@ -10,6 +10,10 @@ const { audio, commentator } = window.LBLAudio;
 const { cleanName, titleFor, scores } = window.LBLShared;
 
 // ───────────────────────────── Config ─────────────────────────────
+// HERD mode ("СҮРГЭЭ АВАР"): everyone starts with a herd of sheep (free points), splits it across the
+// answers by commenting percentages; wolves take the sheep in the wrong pens. Last big herd wins.
+const HERD = window.QUIZ_MODE === 'herd' || new URLSearchParams(location.search).get('mode') === 'herd';
+const GAME_KEY = HERD ? 'herd' : 'quiz';
 const DEFAULT_CONFIG = {
   questionsPerGame: 10,
   introSec: 3,
@@ -23,13 +27,20 @@ const DEFAULT_CONFIG = {
   maxPoints: 100,       // instant correct answer
   minPoints: 50,        // correct at the last second
   streakBonus: 10,      // per correct answer in a row
+  // herd mode
+  startHerd: 1000,      // sheep each player starts a game with
+  topicSec: 12,         // topic vote
+  idleKeep: 0.5,        // share kept by a player who did not place their sheep this question
+  joinUntil: 3,         // new players may join during the first N questions
 };
-const CFG_KEY = 'quiz.config.v1';
+if (HERD) Object.assign(DEFAULT_CONFIG, { questionsPerGame: 8, answerSec: 30, revealSec: 9 });
+const CFG_KEY = HERD ? 'herd.config.v1' : 'quiz.config.v1';
 const CONFIG_LABELS = {
   questionsPerGame: 'Нэг тоглолтын асуулт', answerSec: 'Хариулах хугацаа (сек)', revealSec: 'Хариу харуулах (сек)',
   likeGoal: 'Like зорилго (50/50)', readQuestion: 'Асуулт унших (1/0)', readOptions: 'Хариулт унших (1/0)',
   maxPoints: 'Дээд оноо', minPoints: 'Доод оноо', streakBonus: 'Цуврал бонус',
 };
+if (HERD) { for (const k of ['maxPoints', 'minPoints', 'streakBonus']) delete CONFIG_LABELS[k]; Object.assign(CONFIG_LABELS, { startHerd: 'Эхний хонь', topicSec: 'Сэдэв сонгох (сек)', idleKeep: 'Хариулаагүй бол үлдэх хэсэг', joinUntil: 'Хэд дэх асуулт хүртэл нэгдэх' }); }
 let CFG = loadConfig();
 function loadConfig() { try { return { ...DEFAULT_CONFIG, ...JSON.parse(localStorage.getItem(CFG_KEY) || '{}') }; } catch { return { ...DEFAULT_CONFIG }; } }
 function saveConfig() { try { localStorage.setItem(CFG_KEY, JSON.stringify(CFG)); } catch {} }
@@ -41,7 +52,7 @@ const AREA = { top: 440, bottom: 1290 };
 const OPT = [{ h: 355, s: 80, l: 55 }, { h: 212, s: 85, l: 55 }, { h: 44, s: 92, l: 50 }, { h: 140, s: 65, l: 42 }];
 const GOLD = { h: 45, s: 100, l: 60 }, RED = { h: 350, s: 95, l: 62 }, CYAN = { h: 178, s: 90, l: 55 }, GREEN = { h: 140, s: 85, l: 55 };
 const PINK = { h: 330, s: 90, l: 62 };
-const PHASE = { INTRO: 'INTRO', QUESTION: 'QUESTION', REVEAL: 'REVEAL', BOARD: 'BOARD', FINAL: 'FINAL' };
+const PHASE = { TOPIC: 'TOPIC', INTRO: 'INTRO', QUESTION: 'QUESTION', REVEAL: 'REVEAL', BOARD: 'BOARD', FINAL: 'FINAL' };
 const CAT_ICON = { 'Түүх': '📜', 'Газарзүй': '🗺', 'Соёл': '🎻', 'Шинжлэх ухаан': '🔬', 'Ерөнхий': '💡', 'Спорт': '🏅' };
 const NUM_WORD = ['Нэг', 'Хоёр', 'Гурав', 'Дөрөв'];
 
@@ -85,6 +96,21 @@ function nextQuestion(cat) {
   return { c: src.c || 'Ерөнхий', q: src.q, opts, correct: opts.indexOf(src.a[0]) };
 }
 
+/** "2" → all on 2 · "1 60 3 40" / "1-60, 3-40%" → split. At most 3 answers, normalised to 100 %. */
+function parseAlloc(s, removed) {
+  if (!/^\s*[1-4]/.test(s)) return null;
+  const nums = (s.replace(/[%:,\-=\/]/g, ' ').match(/\d+/g) || []).map(Number);
+  const m = [0, 0, 0, 0];
+  if (nums.length === 1) { if (nums[0] >= 1 && nums[0] <= 4) m[nums[0] - 1] = 100; }
+  else for (let i = 0; i + 1 < nums.length; i += 2) { const a = nums[i], p = nums[i + 1]; if (a >= 1 && a <= 4 && p > 0) m[a - 1] += Math.min(100, p); }
+  for (const k of removed) m[k] = 0;
+  const used = m.map((p, i) => [p, i]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]);
+  if (!used.length) return null;
+  for (const [, i] of used.slice(3)) m[i] = 0;                 // leave at least one pen empty
+  const sum = m.reduce((a, b) => a + b, 0);
+  return m.map(p => p * 100 / sum);
+}
+
 // ───────────────────────────── Game state ─────────────────────────────
 const quiz = {
   t: 0, phase: PHASE.INTRO, phaseT: 0, qIndex: 0, game: 1,
@@ -94,6 +120,7 @@ const quiz = {
   feed: [], banners: [], banner: null, particles: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, board: { week: [], all: [] },
   bank: { likes: 0, secs: 0, removes: 0 }, sponsor: null, chooser: null, nextCat: null,
+  alloc: new Map(), topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
 
   get duration() { return CFG.answerSec + this.extra; },
 
@@ -102,7 +129,7 @@ const quiz = {
     let v = this.viewers.get(user.id);
     if (!v) {
       v = { id: user.id, name: cleanName(user.nickname || user.uniqueId || user.id, user.id), avatar: user.avatar || '', color: nextColor(),
-            score: 0, streak: 0, correct: 0, allPts: 0, likeQ: 0 };
+            score: 0, streak: 0, correct: 0, allPts: 0, likeQ: 0, herd: null, out: false };
       this.viewers.set(v.id, v); lookupQueue.add(v.id);
     } else {
       if (user.avatar) v.avatar = user.avatar;
@@ -134,6 +161,7 @@ const quiz = {
       }
       return;
     }
+    if (HERD) return this.herdComment(v, s);
     if (this.phase !== PHASE.QUESTION || this.answers.has(v.id)) return;
     let m = s.match(/^([1-4])(?!\d)/), opt = -1;
     if (m) opt = +m[1] - 1;
@@ -154,6 +182,36 @@ const quiz = {
     v.likeQ += take; this.likesQ += take;
     this.checkLikeGoal();
   },
+
+  herdComment(v, s) {
+    if (this.phase === PHASE.TOPIC) {
+      const m = s.match(/^([12])(?!\d)/);
+      if (m && !this.topicVoters.has(v.id)) { this.topicVoters.add(v.id); this.topicVotes[+m[1] - 1]++; this.flash.answer = this.t; audio.play('vote'); }
+      return;
+    }
+    if (this.phase !== PHASE.QUESTION || v.out) return;
+    const a = parseAlloc(s, this.removed); if (!a) return;
+    if (v.herd == null) {
+      if (this.qIndex >= CFG.joinUntil) { if (!v.lateHint) { v.lateHint = true; this.pushFeed(`⏳ ${v.name}: дараагийн тоглолтод нэгдээрэй`, CYAN); } return; }
+      v.herd = CFG.startHerd; this.pushFeed(`🐑 ${v.name} ${fmt(CFG.startHerd)} хоньтой нэгдлээ`, GREEN);
+    }
+    const had = this.alloc.has(v.id);
+    this.alloc.set(v.id, a);
+    this.answers.set(v.id, { opt: a.indexOf(Math.max(...a)), t: this.phaseT });
+    if (!had) { this.recent.unshift({ v, t: this.t }); if (this.recent.length > 12) this.recent.length = 12; }
+    this.flash.answer = this.t;
+    audio.play('vote');
+  },
+  /** sheep currently placed on each answer, and number of players per answer */
+  placed() {
+    const sh = [0, 0, 0, 0], pl = [0, 0, 0, 0];
+    for (const [id, a] of this.alloc) {
+      const v = this.viewers.get(id); if (!v || !v.herd) continue;
+      for (let i = 0; i < 4; i++) if (a[i] > 0) { sh[i] += v.herd * a[i] / 100; pl[i]++; }
+    }
+    return { sh, pl };
+  },
+  players() { let n = 0; for (const v of this.viewers.values()) if (v.herd > 0) n++; return n; },
 
   checkLikeGoal() {
     if (this.likeRemoved || this.likesQ < CFG.likeGoal) return;
@@ -210,6 +268,12 @@ const quiz = {
     // people who picked it may answer again
     for (const [id, a] of this.answers) if (a.opt === k) this.answers.delete(id);
     this.counts[k] = 0;
+    for (const [id, a] of this.alloc) {               // herd mode: sheep on the removed answer go to the others
+      if (!a[k]) continue;
+      const rest = a.reduce((x, y, i) => x + (i === k ? 0 : y), 0);
+      if (!rest) { this.alloc.delete(id); this.answers.delete(id); continue; }
+      const n = a.map((p, i) => i === k ? 0 : p * 100 / rest); this.alloc.set(id, n);
+    }
     audio.play('stumble');
     return true;
   },
@@ -230,13 +294,33 @@ const quiz = {
   // ── flow ──
   startIntro() {
     if (this.chooser && !this.nextCat) this.chooser = null;     // didn't choose in time → random topic
-    this.cur = nextQuestion(this.nextCat); this.nextCat = null; this.sponsor = null;
-    this.answers.clear(); this.counts = [0, 0, 0, 0]; this.removed.clear(); this.likesQ = 0; this.likeRemoved = false; this.extra = 0;
+    this.sponsor = null;
+    this.answers.clear(); this.alloc.clear(); this.lost = 0; this.outNow = 0; this.counts = [0, 0, 0, 0]; this.removed.clear(); this.likesQ = 0; this.likeRemoved = false; this.extra = 0;
     this.recent = []; this.fastest = null; this.correctList = []; this.flags.clear();
     for (const v of this.viewers.values()) v.likeQ = 0;
+    if (HERD && !this.nextCat) {                          // viewers choose between two topics
+      const cats = shuffle([...new Set((window.QUIZ_QUESTIONS || []).map(q => q.c))]);
+      this.topics = cats.slice(0, 2); this.topicVotes = [0, 0]; this.topicVoters.clear();
+      if (this.topics.length === 2) {
+        this.setPhase(PHASE.TOPIC); audio.intensity = 0;
+        commentator.say(`Сэдвээ сонгоцгооё! Нэг: ${this.topics[0]}. Хоёр: ${this.topics[1]}.`, 3, 'h_topic');
+        return;
+      }
+    }
+    this.cur = nextQuestion(this.nextCat); this.nextCat = null;
     this.setPhase(PHASE.INTRO);
     audio.intensity = 0;
     commentator.say('Шинэ асуулт!', 2, 'q_new');
+    audio.play('box');
+  },
+  endTopic() {
+    const [a, b] = this.topicVotes;
+    const k = a === b ? Math.floor(Math.random() * 2) : a > b ? 0 : 1;
+    const cat = this.nextCat || this.topics[k];
+    this.cur = nextQuestion(cat); this.nextCat = null;
+    this.pushFeed(`🗂 Сэдэв: ${this.cur.c}`, GOLD);
+    this.setPhase(PHASE.INTRO);
+    commentator.say(`${this.cur.c}!`, 2);
     audio.play('box');
   },
   startQuestion() {
@@ -252,8 +336,32 @@ const quiz = {
       if (CFG.readOptions) s += ' ' + this.cur.opts.map((o, i) => `${NUM_WORD[i]}: ${o}.`).join(' ');
       commentator.say(s, 3);
     }
+    if (HERD && this.qIndex === 0) this.announce({ icon: '🐑', text: 'ХОНИО ХУВАА!', sub: '«2» = бүгдийг 2-т · «1 60 3 40» = 60% 1-д, 40% 3-т', color: CYAN, dur: 6, prio: 2 });
+  },
+  herdReveal() {
+    const q = this.cur;
+    let lost = 0, out = 0, best = null;
+    this.correctList = [];
+    for (const v of this.viewers.values()) {
+      if (!(v.herd > 0)) continue;
+      const a = this.alloc.get(v.id);
+      const keep = a ? a[q.correct] / 100 : CFG.idleKeep;
+      const nh = Math.round(v.herd * keep);
+      lost += v.herd - nh; v.lastLost = v.herd - nh; v.herd = nh; v.score = nh;
+      if (nh > 0) { this.correctList.push(v); if (!best || nh > best.herd) best = v; }
+      else { v.out = true; out++; }
+    }
+    this.lost = lost; this.outNow = out; this.fastest = best;
+    this.setPhase(PHASE.REVEAL);
+    audio.intensity = 0; audio.play('win'); setTimeout(() => audio.play('stumble'), 600);
+    let s = `Зөв хариулт: ${NUM_WORD[q.correct].toLowerCase()}, ${q.opts[q.correct]}!`;
+    if (lost) s += ` Чоно ${fmt(lost)} хонь авч явлаа!`;
+    if (out) s += ` ${out} хүн сүргээ алдлаа.`;
+    commentator.say(s, 3);
+    this.burst(540, 760, GREEN, 30, 1.2);
   },
   reveal() {
+    if (HERD) return this.herdReveal();
     const q = this.cur, dur = this.duration;
     const entries = [];
     let fastest = null;
@@ -270,7 +378,7 @@ const quiz = {
       } else { v.streak = 0; v.lastPts = 0; }
     }
     this.fastest = fastest;
-    scores.add('quiz', entries).then(r => { for (const [id, pts] of Object.entries(r.all || {})) { const v = this.viewers.get(id); if (v) v.allPts = pts; } refreshBoard(); });
+    scores.add(GAME_KEY, entries).then(r => { for (const [id, pts] of Object.entries(r.all || {})) { const v = this.viewers.get(id); if (v) v.allPts = pts; } refreshBoard(); });
     this.setPhase(PHASE.REVEAL);
     audio.intensity = 0;
     audio.play('win');
@@ -290,6 +398,10 @@ const quiz = {
     this.qIndex++;
     if (this.qIndex >= CFG.questionsPerGame) {
       this.setPhase(PHASE.FINAL);
+      if (HERD) {
+        const entries = [...this.viewers.values()].filter(v => v.herd > 0).map(v => ({ id: v.id, name: v.name, avatar: v.avatar, add: v.herd }));
+        scores.add(GAME_KEY, entries).then(r => { for (const [id, pts] of Object.entries(r.all || {})) { const v = this.viewers.get(id); if (v) v.allPts = pts; } refreshBoard(); });
+      }
       const top = this.top(1)[0];
       commentator.say(top ? `Тэмцээн өндөрлөлөө! Ялагч бол ${top.name}! Баяр хүргэе!` : 'Тэмцээн өндөрлөлөө!', 3, 'q_champion');
       audio.play('win'); audio.play('cheer');
@@ -303,7 +415,8 @@ const quiz = {
   update(dt) {
     this.t += dt; this.phaseT += dt;
     const P = this.phase;
-    if (P === PHASE.INTRO) { if (this.phaseT >= CFG.introSec) this.startQuestion(); }
+    if (P === PHASE.TOPIC) { if (this.phaseT >= CFG.topicSec) this.endTopic(); }
+    else if (P === PHASE.INTRO) { if (this.phaseT >= CFG.introSec) this.startQuestion(); }
     else if (P === PHASE.QUESTION) {
       const left = this.duration - this.phaseT;
       if (left < 5.5 && !this.flags.has('5s')) { this.flags.add('5s'); audio.intensity = 2; commentator.say('Таван секунд үлдлээ!', 2, 'q_5s'); }
@@ -313,7 +426,7 @@ const quiz = {
     else if (P === PHASE.BOARD) { if (this.phaseT >= CFG.boardSec) this.startIntro(); }
     else if (P === PHASE.FINAL) {
       if (this.phaseT >= CFG.finalSec) {
-        for (const v of this.viewers.values()) { v.score = 0; v.streak = 0; v.correct = 0; }
+        for (const v of this.viewers.values()) { v.score = 0; v.streak = 0; v.correct = 0; v.herd = null; v.out = false; v.lateHint = false; }
         this.qIndex = 0; this.game++; this.startIntro();
       }
     }
@@ -329,9 +442,9 @@ const lookupQueue = new Set();
 setInterval(() => {
   if (!lookupQueue.size) return;
   const ids = [...lookupQueue].slice(0, 200); ids.forEach(id => lookupQueue.delete(id));
-  scores.lookup('quiz', ids).then(m => { for (const [id, pts] of Object.entries(m)) { const v = quiz.viewers.get(id); if (v) v.allPts = pts; } });
+  scores.lookup(GAME_KEY, ids).then(m => { for (const [id, pts] of Object.entries(m)) { const v = quiz.viewers.get(id); if (v) v.allPts = pts; } });
 }, 3000);
-function refreshBoard() { scores.board('quiz', 5).then(b => { quiz.board = b; }); }
+function refreshBoard() { scores.board(GAME_KEY, 5).then(b => { quiz.board = b; }); }
 
 // ───────────────────────────── Rendering ─────────────────────────────
 const canvas = document.getElementById('stage');
@@ -395,8 +508,9 @@ function drawHeader() {
   const goalOn = !!(window.LBLGoal && LBLGoal.active);
   if (goalOn) LBLGoal.draw(ctx, 30, 146, W - 60, 78);   // donation goal replaces the title row
   if (!goalOn) {
-  text('АСУУЛТ ХАРИУЛТ', 34, ty, 52, '#fff', 'left', 900, 10);
-  ctx.font = `900 52px ${FONT}`; const tw = ctx.measureText('АСУУЛТ ХАРИУЛТ').width;
+  const TITLE = HERD ? 'СҮРГЭЭ АВАР' : 'АСУУЛТ ХАРИУЛТ';
+  text(TITLE, 34, ty, 52, '#fff', 'left', 900, 10);
+  ctx.font = `900 52px ${FONT}`; const tw = ctx.measureText(TITLE).width;
   const px = 34 + tw + 16;
   roundRect(px, ty - 26, 150, 52, 26); ctx.fillStyle = quiz.phase === PHASE.QUESTION ? '#ff2d55' : 'rgba(255,255,255,.14)'; ctx.fill();
   text(`${Math.min(quiz.qIndex + 1, n)}/${n}`, px + 75, ty + 1, 26, '#fff', 'center', 900);
@@ -406,7 +520,7 @@ function drawHeader() {
   }
   }
   const cards = [
-    ['answer', '💬', '1–4 БИЧ', 'Хариулах', CYAN],
+    HERD ? ['answer', '💬', '1 60 3 40', 'Хонио хуваа', CYAN] : ['answer', '💬', '1–4 БИЧ', 'Хариулах', CYAN],
     ['like', '❤', 'LIKE', 'Хамтдаа 50/50', RED],
     ['rose', '🌹', 'ROSE', 'Хамтын тусламж', PINK],
     ['gift', '🎁', 'GIFT', '+5с · 50/50', GOLD],
@@ -414,7 +528,7 @@ function drawHeader() {
   const cw = 252, chh = 88, cy = 234, gap = 8;
   cards.forEach(([key, ic, title, desc, col], i) => {
     const cx = 30 + i * (cw + gap);
-    const now = key === 'answer' && quiz.phase === PHASE.QUESTION;
+    const now = key === 'answer' && (quiz.phase === PHASE.QUESTION || quiz.phase === PHASE.TOPIC);
     const lit = Math.max(clamp(1 - (quiz.t - (quiz.flash[key] ?? -9)) / 0.7, 0, 1), now ? 0.4 + 0.4 * pulse(6) : 0);
     roundRect(cx, cy, cw, chh, 20); ctx.fillStyle = `rgba(255,255,255,${0.08 + 0.14 * lit})`; ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = hsl(col, 0, 0.35 + 0.65 * lit); ctx.stroke();
@@ -423,7 +537,12 @@ function drawHeader() {
     text(fitText(desc, cw - 84, 21, 700), cx + 76, cy + 62, 21, '#fff', 'left', 700);
   });
   const sy = 362, P = quiz.phase; let s, col = '#25f4ee';
-  if (P === PHASE.INTRO) s = `❓ Асуулт ${quiz.qIndex + 1} удахгүй…`;
+  if (P === PHASE.TOPIC) { s = `🗂 Сэдэв сонго · ${Math.ceil(Math.max(0, CFG.topicSec - quiz.phaseT))}с · ${quiz.topicVoters.size} санал`; col = '#ffd166'; }
+  else if (P === PHASE.INTRO) s = `❓ Асуулт ${quiz.qIndex + 1} удахгүй…`;
+  else if (HERD && P === PHASE.QUESTION) {
+    const left = Math.max(0, quiz.duration - quiz.phaseT);
+    s = `⏱ ${Math.ceil(left)}с · 🐑 ${quiz.players()} тоглогч`; col = left < 5 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
+  } else if (HERD && P === PHASE.REVEAL) s = `🐺 Чоно ${fmt(quiz.lost)} хонь авч явлаа`;
   else if (P === PHASE.QUESTION) {
     const left = Math.max(0, quiz.duration - quiz.phaseT);
     s = `⏱ ${Math.ceil(left)}с · ${quiz.answers.size} хариулт`; col = left < 5 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
@@ -440,8 +559,9 @@ function drawHeader() {
 }
 
 function drawQuestion() {
-  const q = quiz.cur; if (!q) return;
   const P = quiz.phase;
+  if (P === PHASE.TOPIC) return drawTopic();
+  const q = quiz.cur; if (!q) return;
   if (P === PHASE.BOARD || P === PHASE.FINAL) return;
   // question card
   const y0 = AREA.top, hq = 220;
@@ -472,6 +592,7 @@ function drawQuestion() {
   if (P === PHASE.INTRO) return;
   // options
   const oy = y0 + hq + 46, oh = 92, gap = 12;
+  if (HERD) return drawPens(q, oy, oh, gap);
   const total = Math.max(1, quiz.counts.reduce((a, b) => a + b, 0));
   q.opts.forEach((o, i) => {
     const y = oy + i * (oh + gap);
@@ -517,14 +638,105 @@ function drawQuestion() {
   }
 }
 
+function drawTopic() {
+  const y0 = AREA.top, left = Math.max(0, CFG.topicSec - quiz.phaseT);
+  text('🗂 СЭДВЭЭ СОНГО!', W / 2, y0 + 50, 56, '#ffd166', 'center', 900, 10);
+  text('Comment-д 1 эсвэл 2 бич', W / 2, y0 + 112, 30, '#fff', 'center', 800, 6);
+  const tot = Math.max(1, quiz.topicVotes[0] + quiz.topicVotes[1]);
+  quiz.topics.forEach((c, i) => {
+    const y = y0 + 170 + i * 250, col = OPT[i];
+    roundRect(60, y, W - 120, 220, 30); ctx.fillStyle = 'rgba(12,8,30,.85)'; ctx.fill();
+    const f = quiz.topicVotes[i] / tot;
+    if (quiz.topicVotes[i]) { roundRect(60, y, Math.max(60, (W - 120) * f), 220, 30); ctx.fillStyle = hsl(col, 0, 0.35); ctx.fill(); }
+    ctx.lineWidth = 4; ctx.strokeStyle = hsl(col); roundRect(60, y, W - 120, 220, 30); ctx.stroke();
+    ctx.beginPath(); ctx.arc(150, y + 110, 56, 0, TAU); ctx.fillStyle = hsl(col); ctx.fill();
+    text(String(i + 1), 150, y + 114, 70, '#fff', 'center', 900);
+    text(`${CAT_ICON[c] || '❓'} ${c}`, 240, y + 88, 52, '#fff', 'left', 900, 6);
+    text(`${quiz.topicVotes[i]} санал · ${Math.round(f * 100)}%`, 240, y + 150, 28, 'rgba(255,255,255,.85)', 'left', 800);
+  });
+  text(String(Math.ceil(left)), W / 2, y0 + 720, 90, left < 4 ? '#ff4d6d' : '#ffd166', 'center', 900, 12);
+}
+
+function drawSheep(x, y, r, alpha = 1) {
+  ctx.globalAlpha *= alpha;
+  ctx.fillStyle = '#f4f1e8';
+  for (const [dx, dy] of [[-r * 0.5, 0], [0, -r * 0.35], [r * 0.5, 0], [0, r * 0.3]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, r * 0.62, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = '#2b2522'; ctx.beginPath(); ctx.ellipse(x + r * 1.05, y, r * 0.42, r * 0.34, 0, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+/** HERD mode: four pens; sheep placed live; on reveal wolves chase the sheep out of the wrong pens. */
+function drawPens(q, oy, oh, gap) {
+  const P = quiz.phase, rev = P === PHASE.REVEAL;
+  const { sh, pl } = quiz.placed();
+  const total = Math.max(1, sh.reduce((a, b) => a + b, 0));
+  const chase = rev ? clamp(quiz.phaseT / 2.4, 0, 1) : 0;
+  q.opts.forEach((o, i) => {
+    const y = oy + i * (oh + gap);
+    const removed = quiz.removed.has(i), isRight = i === q.correct, wrong = rev && !isRight;
+    const col = OPT[i];
+    ctx.globalAlpha = removed ? 0.3 : 1;
+    roundRect(30, y, W - 60, oh, 24); ctx.fillStyle = wrong ? `rgba(60,10,20,${0.6 + 0.3 * chase})` : 'rgba(12,8,30,.85)'; ctx.fill();
+    const f = sh[i] / total;
+    if (sh[i] && !wrong) { roundRect(30, y, Math.max(48, (W - 60) * f), oh, 24); ctx.fillStyle = hsl(col, 0, 0.3); ctx.fill(); }
+    ctx.lineWidth = rev && isRight ? 7 : 3;
+    ctx.strokeStyle = rev && isRight ? `rgba(109,255,176,${0.7 + 0.3 * pulse(8)})` : wrong ? '#ff4d6d' : hsl(col); roundRect(30, y, W - 60, oh, 24); ctx.stroke();
+    ctx.beginPath(); ctx.arc(82, y + oh / 2, 32, 0, TAU); ctx.fillStyle = hsl(col); ctx.fill();
+    text(String(i + 1), 82, y + oh / 2 + 2, 40, '#fff', 'center', 900);
+    text(fitText(o, 420, 34, 800), 132, y + oh / 2 + 1, 34, '#fff', 'left', 800);
+    // sheep in the pen (up to 8 icons), running away on a wrong answer
+    const n = sh[i] ? clamp(Math.round(f * 8), 1, 8) : 0;
+    for (let k = 0; k < n; k++) {
+      let sx = 600 + k * 34, sy = y + oh / 2 + (k % 2 ? 12 : -10);
+      let al = 1;
+      if (wrong) { sx += chase * (420 + k * 30); al = 1 - chase; }
+      if (al > 0.02) drawSheep(sx, sy + Math.sin(quiz.t * 8 + k) * (wrong ? 3 : 1), 11, al);
+    }
+    if (wrong && chase < 1) text('🐺', 560 + chase * 520, y + oh / 2, 44, '#fff', 'center', 400);
+    const shown = wrong ? sh[i] * (1 - chase) : sh[i];
+    text(`🐑 ${fmt(shown)}`, W - 56, y + oh / 2 - 14, 24, '#fff', 'right', 900, 4);
+    text(`${pl[i]} хүн · ${Math.round(f * 100)}%`, W - 56, y + oh / 2 + 18, 18, 'rgba(255,255,255,.75)', 'right', 800, 3);
+    if (removed) { ctx.strokeStyle = '#ff4d6d'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(60, y + oh / 2); ctx.lineTo(W - 60, y + oh / 2); ctx.stroke(); }
+    if (rev && isRight) text('✅', 560, y + oh / 2, 40, '#fff', 'center', 400);
+    ctx.globalAlpha = 1;
+  });
+  // shared like goal (same as the normal quiz)
+  const ly = oy + 4 * (oh + gap) + 8;
+  const lf = clamp(quiz.likesQ / CFG.likeGoal, 0, 1);
+  roundRect(30, ly, W - 60, 40, 20); ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.fill();
+  roundRect(30, ly, Math.max(40, (W - 60) * lf), 40, 20); ctx.fillStyle = quiz.likeRemoved ? 'rgba(109,255,176,.5)' : 'rgba(255,77,109,.6)'; ctx.fill();
+  text(quiz.likeRemoved ? '❤ Хамтын хүчээр нэг хашаа хаагдлаа!' : `❤ ${Math.min(quiz.likesQ, CFG.likeGoal)} / ${CFG.likeGoal} — хамтдаа нэг буруу хашааг хаа`, W / 2, ly + 21, 21, '#fff', 'center', 800, 4);
+  const ry = ly + 70;
+  if (P === PHASE.QUESTION) {
+    if (!quiz.recent.length || quiz.phaseT < 8) {
+      text('«2» = бүх хонь 2-т · «1 60 3 40» = 60% 1-д, 40% 3-т', W / 2, ry - 12, 24, '#25f4ee', 'center', 900, 5);
+      text(`Шинэ тоглогч ${fmt(CFG.startHerd)} хоньтой эхэлнэ · хугацаа дуустал өөрчилж болно`, W / 2, ry + 20, 19, 'rgba(255,255,255,.75)', 'center', 700, 4);
+    } else {
+      quiz.recent.slice(0, 9).forEach((r, k) => {
+        const x = 60 + k * 112, a = quiz.alloc.get(r.v.id); if (!a) return;
+        ctx.beginPath(); ctx.arc(x, ry - 8, 24, 0, TAU); ctx.fillStyle = hsl(r.v.color); ctx.fill(); drawAvatar(r.v, x, ry - 8, 21);
+        const main = a.map((p, i) => [p, i]).filter(z => z[0] > 0).sort((u, w) => w[0] - u[0]).map(([p, i]) => `${i + 1}:${Math.round(p)}`).slice(0, 2).join(' ');
+        text(main, x, ry + 26, 16, '#fff', 'center', 800, 3);
+      });
+    }
+  } else if (P === PHASE.REVEAL) {
+    const f = quiz.fastest;
+    if (f) {
+      ctx.beginPath(); ctx.arc(70, ry, 32, 0, TAU); ctx.fillStyle = '#ffd166'; ctx.fill(); drawAvatar(f, 70, ry, 28);
+      text(fitText(`🏆 Хамгийн том сүрэг: ${f.name}`, 640, 27, 900), 116, ry - 12, 27, '#ffd166', 'left', 900, 6);
+      text(`🐑 ${fmt(f.herd)}${quiz.outNow ? ` · 😢 ${quiz.outNow} хүн сүргээ алдлаа` : ''}`, 116, ry + 20, 22, '#fff', 'left', 800, 5);
+    } else text(quiz.players() ? 'Энэ удаа бүгд сүргээ алдлаа 😮' : 'Comment-д хариултаа бичээд тоглоорой!', W / 2, ry, 26, '#fff', 'center', 800, 6);
+  }
+}
+
 function drawBoard() {
   const P = quiz.phase;
   if (P !== PHASE.BOARD && P !== PHASE.FINAL) return;
   const top = AREA.top - 10;
   roundRect(30, top, W - 60, AREA.bottom - top, 30); ctx.fillStyle = 'rgba(10,6,28,.88)'; ctx.fill();
-  text(P === PHASE.FINAL ? '🎉 ТЭМЦЭЭНИЙ ДҮН' : `🏆 ОНООНЫ САМБАР · ${quiz.qIndex}/${CFG.questionsPerGame}`, W / 2, top + 50, 40, '#ffd166', 'center', 900, 8);
+  text(P === PHASE.FINAL ? (HERD ? '🎉 ХАМГИЙН ТОМ СҮРЭГ' : '🎉 ТЭМЦЭЭНИЙ ДҮН') : `🏆 ${HERD ? 'СҮРГИЙН' : 'ОНООНЫ'} САМБАР · ${quiz.qIndex}/${CFG.questionsPerGame}`, W / 2, top + 50, 40, '#ffd166', 'center', 900, 8);
   const list = quiz.top(P === PHASE.FINAL ? 6 : 8);
-  if (!list.length) text('Одоогоор оноо авсан хүн алга', W / 2, top + 160, 28, '#fff', 'center', 700);
+  if (!list.length) text(HERD ? 'Сүрэгтэй үлдсэн хүн алга' : 'Одоогоор оноо авсан хүн алга', W / 2, top + 160, 28, '#fff', 'center', 700);
   const row = (v, k, y, pts, gold) => {
     roundRect(70, y - 25, W - 140, 50, 18); ctx.fillStyle = gold ? 'rgba(255,209,102,.3)' : 'rgba(255,255,255,.07)'; ctx.fill();
     text(['🥇', '🥈', '🥉'][k] || String(k + 1), 112, y, 26, '#fff', 'center', 900);
@@ -533,7 +745,7 @@ function drawBoard() {
     const tt = titleFor(v.allPts ?? v.pts);
     if (v.streak >= 2) text(`🔥${v.streak}`, 640, y, 22, '#ffd166', 'center', 900);
     else if (tt && tt.icon) text(tt.icon, 640, y, 22, '#fff', 'center', 400);
-    text(fmt(pts), W - 100, y, 24, '#ffd166', 'right', 900);
+    text((HERD ? '🐑 ' : '') + fmt(pts), W - 100, y, 24, '#ffd166', 'right', 900);
   };
   list.forEach((v, k) => row(v, k, top + 120 + k * 60, v.score, k === 0));
   if (P === PHASE.FINAL) {
@@ -600,7 +812,13 @@ const SIM_GIFTS = {
   big: { name: 'Lion', diamonds: 299, count: 1 }, huge: { name: 'Galaxy', diamonds: 1000, count: 1 },
 };
 function botAnswer(name) {
+  if (HERD && quiz.phase === PHASE.TOPIC) return sim('comment', name, { text: String(1 + Math.floor(Math.random() * 2)) });
   const q = quiz.cur; if (!q) return;
+  if (HERD) {
+    const guess = Math.random() < 0.55 ? q.correct : Math.floor(Math.random() * 4), other = (guess + 1 + Math.floor(Math.random() * 3)) % 4;
+    const p = 40 + Math.floor(Math.random() * 6) * 10;
+    return sim('comment', name, { text: Math.random() < 0.4 ? String(guess + 1) : `${guess + 1} ${p} ${other + 1} ${100 - p}` });
+  }
   let opt = Math.random() < 0.55 ? q.correct : Math.floor(Math.random() * 4);
   if (quiz.removed.has(opt)) opt = q.correct;
   sim('comment', name, { text: String(opt + 1) });
@@ -611,6 +829,7 @@ function autoSimTick(dt) {
   autoAcc += dt;
   while (autoAcc > 0.1) {
     autoAcc -= 0.1;
+    if (quiz.phase === PHASE.TOPIC && Math.random() < 0.15) { botAnswer(pick(NAMES)); continue; }
     if (quiz.phase !== PHASE.QUESTION) continue;
     const name = pick(NAMES), r = Math.random();
     if (r < 0.08) botAnswer(name);
@@ -632,6 +851,7 @@ const QUIZ_LINES = [
   ['goal_info',  'Тоглоомын танилцуулга', 'МАЛЧИН тоглоомын тухай... (өөрийн танилцуулгаа бичнэ)'],
   ['goal_step',  'Зорилгын 25/50/75%',   'Зорилгын нэг хэсэг биеллээ! Баярлалаа!'],
   ['goal_done',  'Зорилго биелэх',       'Зорилго биеллээ! Бүгдэд баярлалаа!'],
+  ['h_topic',    'Сэдэв сонгох (сүрэг)', 'Сэдвээ сонгоцгооё! Коммент хэсэгт нэг эсвэл хоёр гэж бичээрэй!'],
   ['q_champion', 'Тэмцээн өндөрлөх',     'Тэмцээн өндөрлөлөө! Баяр хүргэе!'],
 ];
 
