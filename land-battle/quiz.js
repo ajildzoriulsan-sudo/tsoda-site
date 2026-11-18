@@ -25,7 +25,7 @@ const TH = MONEY ? {
   amount: (n) => fmtBig(n), all: 'бүх мөнгө', join: (v) => `💰 ${v.name} ${fmtBig(CFG.startHerd)}-өөр нэгдлээ`,
   lostLine: (n) => `${fmtBig(n)} унаж алга боллоо!`, lostStatus: (n) => `💸 ${fmtBig(n)} унаж алга боллоо`, outLine: (k) => `${k} хүн мөнгөө бүгдийг алдлаа.`,
   players: (k) => `💰 ${k} тоглогч`, best: 'Хамгийн их мөнгөтэй', bestOut: (k) => `😢 ${k} хүн мөнгөө алдлаа`, allOut: 'Энэ удаа бүгд мөнгөө алдлаа 😮',
-  start: (n) => `Шинэ тоглогч ${fmtBig(n)} виртуал мөнгөтэй эхэлнэ · хугацаа дуустал өөрчилж болно`,
+  start: (n) => `Хүн бүр ${fmtBig(n)} (${Math.round(n / 1e6)} боодол) виртуал мөнгөтэй эхэлнэ · «мөнгө» гэж бичвэл үлдэгдлээ харна`,
   final: '🎉 ХАМГИЙН ИХ МӨНГӨ', board: 'МӨНГӨНИЙ', none: 'Мөнгөтэй үлдсэн хүн алга', pen: 'тавцан', startLabel: 'Эхний мөнгө (₮)',
 } : {
   title: 'СҮРГЭЭ АВАР', icon: '🐑', unitIcon: '🐑', card: 'Хонио хуваа', split: 'ХОНИО ХУВАА!',
@@ -55,8 +55,9 @@ const DEFAULT_CONFIG = {
   joinUntil: 3,         // new players may join during the first N questions
 };
 if (HERD) Object.assign(DEFAULT_CONFIG, { questionsPerGame: 8, answerSec: 30, revealSec: 9 });
-if (MONEY) DEFAULT_CONFIG.startHerd = 1000000;
-const CFG_KEY = MONEY ? 'money.config.v1' : HERD ? 'herd.config.v1' : 'quiz.config.v1';
+if (MONEY) DEFAULT_CONFIG.startHerd = 50000000;   // 50 сая = 50 боодол
+const UNIT = 1000000;                             // money mode: 1 боодол = 1 сая₮
+const CFG_KEY = MONEY ? 'money.config.v2' : HERD ? 'herd.config.v1' : 'quiz.config.v1';
 const CONFIG_LABELS = {
   questionsPerGame: 'Нэг тоглолтын асуулт', answerSec: 'Хариулах хугацаа (сек)', revealSec: 'Хариу харуулах (сек)',
   likeGoal: 'Like зорилго (50/50)', readQuestion: 'Асуулт унших (1/0)', readOptions: 'Хариулт унших (1/0)',
@@ -104,19 +105,28 @@ function nextColor() { hueSeed = (hueSeed + 137.508) % 360; return { h: Math.rou
 
 // question pool: shuffled, no repeats until all were used
 let pool = [];
-function nextQuestion(cat) {
+/** target difficulty (1 easy … 5 very hard) for question i of n: starts easy, ends very hard */
+function targetDiff(i, n) {
+  if (n === 8) return [1, 1, 2, 2, 3, 3, 4, 5][i] || 5;
+  return Math.min(5, 1 + Math.floor(i * 5 / Math.max(1, n)));
+}
+function nextQuestion(cat, diff) {
   const all = (window.QUIZ_QUESTIONS || []).filter(q => q && q.q && Array.isArray(q.a) && q.a.length >= 2);
   if (!all.length) return { c: 'Ерөнхий', q: 'questions.js файлд асуулт алга байна', opts: ['—', '—', '—', '—'], correct: 0 };
   if (!pool.length) pool = shuffle(all.slice());
-  let src;
-  if (cat) {
-    const k = pool.findIndex(q => q.c === cat);
+  const dOf = (q) => q.d || 3;
+  let src = null;
+  // closest difficulty first (exact, then ±1, ±2 …), preferring the chosen topic, never repeating until the pool is used up
+  for (let spread = 0; spread <= 4 && !src; spread++) {
+    const ok = (q) => !diff || Math.abs(dOf(q) - diff) <= spread;
+    let k = cat ? pool.findIndex(q => q.c === cat && ok(q)) : -1;
+    if (k < 0 && !cat) k = pool.findIndex(ok);
     if (k >= 0) src = pool.splice(k, 1)[0];
-    else { const same = all.filter(q => q.c === cat); if (same.length) src = pick(same); }
   }
+  if (!src && cat) { const same = all.filter(q => q.c === cat); if (same.length) src = same.sort((a, b) => Math.abs(dOf(a) - (diff || 3)) - Math.abs(dOf(b) - (diff || 3)))[0]; }
   if (!src) src = pool.shift();
   const opts = shuffle(src.a.slice(0, 4));
-  return { c: src.c || 'Ерөнхий', q: src.q, opts, correct: opts.indexOf(src.a[0]) };
+  return { c: src.c || 'Ерөнхий', q: src.q, opts, correct: opts.indexOf(src.a[0]), d: dOf(src) };
 }
 
 /** "2" → all on 2 · "1 60 3 40" / "1-60, 3-40%" → split. At most 3 answers, normalised to 100 %. */
@@ -134,6 +144,15 @@ function parseAlloc(s, removed) {
   return m.map(p => p * 100 / sum);
 }
 
+/** split B whole bundles by percentages (largest remainder), only on the chosen answers */
+function toBundles(pct, B) {
+  const raw = pct.map(p => p * B / 100), b = raw.map(Math.floor);
+  let left = B - b.reduce((x, y) => x + y, 0);
+  const order = raw.map((r, i) => [r - Math.floor(r), i]).filter(([, i]) => pct[i] > 0).sort((x, y) => y[0] - x[0]);
+  for (let k = 0; left > 0 && order.length; k = (k + 1) % order.length, left--) b[order[k][1]]++;
+  return b;
+}
+
 // ───────────────────────────── Game state ─────────────────────────────
 const quiz = {
   t: 0, phase: PHASE.INTRO, phaseT: 0, qIndex: 0, game: 1,
@@ -143,7 +162,7 @@ const quiz = {
   feed: [], banners: [], banner: null, particles: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, board: { week: [], all: [] },
   bank: { likes: 0, secs: 0, removes: 0 }, sponsor: null, chooser: null, nextCat: null,
-  alloc: new Map(), drops: [], revealDoneT: 0, revealDone: true, shake: 0, topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
+  alloc: new Map(), notes: [], results: [], drops: [], revealDoneT: 0, revealDone: true, shake: 0, topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
 
   get duration() { return CFG.answerSec + this.extra; },
 
@@ -212,14 +231,21 @@ const quiz = {
       if (m && !this.topicVoters.has(v.id)) { this.topicVoters.add(v.id); this.topicVotes[+m[1] - 1]++; this.flash.answer = this.t; audio.play('vote'); }
       return;
     }
+    if (/^(мөнгө|хонь|үлдэгдэл|\?)/.test(s)) {                        // "how much do I have?"
+      if (v.herd != null) this.note(`${v.out ? '😢' : TH.unitIcon} ${v.name}: ${v.out ? 'энэ тоглолтод хасагдсан' : 'таньд ' + TH.amount(v.herd) + ' байна'}`, CYAN);
+      return;
+    }
     if (this.phase !== PHASE.QUESTION || v.out) return;
-    const a = parseAlloc(s, this.removed); if (!a) return;
+    let a = parseAlloc(s, this.removed); if (!a) return;
     if (v.herd == null) {
       if (this.qIndex >= CFG.joinUntil) { if (!v.lateHint) { v.lateHint = true; this.pushFeed(`⏳ ${v.name}: дараагийн тоглолтод нэгдээрэй`, CYAN); } return; }
       v.herd = CFG.startHerd; this.pushFeed(TH.join(v), GREEN);
     }
+    if (MONEY) a = toBundles(a, Math.round(v.herd / UNIT)).map(b => b * UNIT * 100 / v.herd);   // whole bundles only
     const had = this.alloc.has(v.id);
     this.alloc.set(v.id, a);
+    const parts = a.map((p, i) => [p, i]).filter(x => x[0] > 0).map(([p, i]) => `${i + 1}: ${TH.amount(v.herd * p / 100)}`);
+    this.note(`✅ ${v.name} ➜ ${parts.join(' · ')}`, OPT[a.indexOf(Math.max(...a))]);
     this.answers.set(v.id, { opt: a.indexOf(Math.max(...a)), t: this.phaseT });
     if (!had) { this.recent.unshift({ v, t: this.t }); if (this.recent.length > 12) this.recent.length = 12; }
     this.flash.answer = this.t;
@@ -235,6 +261,7 @@ const quiz = {
     return { sh, pl };
   },
   herdTop(n) { return [...this.viewers.values()].filter(v => v.herd > 0).sort((a, b) => b.herd - a.herd).slice(0, n); },
+  note(text, color) { this.notes.unshift({ text, color, t: this.t }); if (this.notes.length > 6) this.notes.length = 6; },
   players() { let n = 0; for (const v of this.viewers.values()) if (v.herd > 0) n++; return n; },
 
   checkLikeGoal() {
@@ -331,11 +358,12 @@ const quiz = {
   startIntro() {
     if (this.chooser && !this.nextCat) this.chooser = null;     // didn't choose in time → random topic
     this.sponsor = null;
-    this.answers.clear(); this.alloc.clear(); this.lost = 0; this.outNow = 0; this.prePlaced = null; this.counts = [0, 0, 0, 0]; this.removed.clear(); this.likesQ = 0; this.likeRemoved = false; this.extra = 0;
+    this.answers.clear(); this.alloc.clear(); this.lost = 0; this.outNow = 0; this.prePlaced = null; this.notes = []; this.counts = [0, 0, 0, 0]; this.removed.clear(); this.likesQ = 0; this.likeRemoved = false; this.extra = 0;
     this.recent = []; this.fastest = null; this.correctList = []; this.flags.clear();
     for (const v of this.viewers.values()) v.likeQ = 0;
     if (HERD && !this.nextCat) {                          // viewers choose between two topics
-      const cats = shuffle([...new Set((window.QUIZ_QUESTIONS || []).map(q => q.c))]);
+      const td = targetDiff(this.qIndex, CFG.questionsPerGame);
+      const cats = shuffle([...new Set((window.QUIZ_QUESTIONS || []).filter(q => Math.abs((q.d || 3) - td) <= 1).map(q => q.c))]);
       this.topics = cats.slice(0, 2); this.topicVotes = [0, 0]; this.topicVoters.clear();
       if (this.topics.length === 2) {
         this.setPhase(PHASE.TOPIC); audio.intensity = 0;
@@ -343,7 +371,7 @@ const quiz = {
         return;
       }
     }
-    this.cur = nextQuestion(this.nextCat); this.nextCat = null;
+    this.cur = nextQuestion(this.nextCat, targetDiff(this.qIndex, CFG.questionsPerGame)); this.nextCat = null;
     this.setPhase(PHASE.INTRO);
     audio.intensity = 0;
     commentator.say('Шинэ асуулт!', 2, 'q_new');
@@ -353,10 +381,10 @@ const quiz = {
     const [a, b] = this.topicVotes;
     const k = a === b ? Math.floor(Math.random() * 2) : a > b ? 0 : 1;
     const cat = this.nextCat || this.topics[k];
-    this.cur = nextQuestion(cat); this.nextCat = null;
+    this.cur = nextQuestion(cat, targetDiff(this.qIndex, CFG.questionsPerGame)); this.nextCat = null;
     this.pushFeed(`🗂 Сэдэв: ${this.cur.c}`, GOLD);
     this.setPhase(PHASE.INTRO);
-    commentator.say(`${this.cur.c}!`, 2);
+    commentator.say(`${this.cur.c}! ${['', 'Амархан асуулт.', 'Амархан асуулт.', 'Дунд зэргийн асуулт.', 'Хэцүү асуулт!', 'Маш хэцүү асуулт!'][this.cur.d || 3]}`, 2);
     audio.play('box');
   },
   startQuestion() {
@@ -389,12 +417,14 @@ const quiz = {
     this.preRank = this.herdTop(6).map(v => ({ v, herd: v.herd }));
     this.prePlaced = this.placed();          // pens keep showing what was placed until it drops
     let lost = 0, out = 0, best = null;
-    this.correctList = [];
+    this.correctList = []; this.results = [];
     for (const v of this.viewers.values()) {
       if (!(v.herd > 0)) continue;
       const a = this.alloc.get(v.id);
       const keep = a ? a[q.correct] / 100 : CFG.idleKeep;
-      const nh = Math.round(v.herd * keep);
+      let nh = Math.round(v.herd * keep);
+      if (MONEY) nh = (a ? Math.round(nh / UNIT) : Math.floor(nh / UNIT)) * UNIT;
+      this.results.push({ v, before: v.herd, after: nh, idle: !a });
       lost += v.herd - nh; v.lastLost = v.herd - nh; v.herd = nh; v.score = nh;
       if (nh > 0) { this.correctList.push(v); if (!best || nh > best.herd) best = v; }
       else { v.out = true; out++; }
@@ -638,7 +668,7 @@ function drawQuestion() {
   const y0 = AREA.top, hq = 220;
   roundRect(30, y0, W - 60, hq, 28); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fill();
   roundRect(54, y0 - 18, 0, 0, 0);
-  const chip = `${CAT_ICON[q.c] || '❓'} ${q.c}`;
+  const chip = `${CAT_ICON[q.c] || '❓'} ${q.c} · ${['', 'Маш амархан', 'Амархан', 'Дунд', 'Хэцүү', 'Маш хэцүү'][q.d || 3]}`;
   ctx.font = `900 22px ${FONT}`; const cwid = ctx.measureText(chip).width + 32;
   roundRect(56, y0 - 20, cwid, 40, 20); ctx.fillStyle = '#7b3fe4'; ctx.fill();
   text(chip, 56 + cwid / 2, y0 + 1, 22, '#fff', 'center', 900);
@@ -660,10 +690,13 @@ function drawQuestion() {
     roundRect(30, y0 + hq + 14, W - 60, 16, 8); ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fill();
     roundRect(30, y0 + hq + 14, (W - 60) * frac, 16, 8); ctx.fillStyle = frac < 0.25 ? '#ff4d6d' : frac < 0.5 ? '#ffd166' : '#25f4ee'; ctx.fill();
   }
-  if (P === PHASE.INTRO) return;
+  if (P === PHASE.INTRO) {
+    if (HERD) drawRule(y0 + hq + 50);
+    return;
+  }
   // options
   const oy = y0 + hq + 46, oh = 92, gap = 12;
-  if (HERD) return drawPens(q, oy, oh, gap);
+  if (HERD) { if (MONEY && P === PHASE.QUESTION) drawRule(y0 + hq + 44); return drawPens(q, oy, oh, gap); }
   const total = Math.max(1, quiz.counts.reduce((a, b) => a + b, 0));
   q.opts.forEach((o, i) => {
     const y = oy + i * (oh + gap);
@@ -939,6 +972,37 @@ function drawPens(q, oy, oh, gap) {
 }
 
 /** Live top-6 by money / sheep (replaces the shared like goal in herd & money modes). */
+function drawRule(y) {
+  const line = MONEY ? `${TH.amount(CFG.startHerd)} = ${Math.round(CFG.startHerd / UNIT)} боодол (1 боодол = 1 сая₮) · 1 хариултыг ХООСОН үлдээ`
+    : `${fmt(CFG.startHerd)} хонь · 1 хариултыг ХООСОН үлдээ`;
+  text(fitText(line, W - 60, 21, 800), W / 2, y, 21, '#ffd166', 'center', 800, 4);
+  text('Comment: «2» = бүгдийг 2-т · «1 60 3 40» = 60% нь 1-д, 40% нь 3-т', W / 2, y + 28, 20, '#25f4ee', 'center', 800, 4);
+}
+
+/** personal confirmations while answering; everyone's result after the reveal */
+function drawNotes(y) {
+  const P = quiz.phase;
+  if (P === PHASE.REVEAL && (!MONEY || quiz.revealDone) && quiz.results.length) {
+    const parts = quiz.results.slice().sort((a, b) => b.after - a.after).map(r =>
+      `${r.v.name} ${TH.amount(r.before)} → ${r.after ? TH.amount(r.after) : '0 😢'}${r.idle ? ' (хариулаагүй)' : ''}`);
+    const line = '💰 Хэдтэй үлдсэн:   ' + parts.join('   ·   ') + '   ·   ';
+    ctx.save(); ctx.beginPath(); ctx.rect(30, y, W - 60, 60); ctx.clip();
+    ctx.font = `800 22px ${FONT}`; const lw = ctx.measureText(line).width;
+    const off = lw > W - 60 ? (quiz.phaseT * 110) % lw : 0;
+    text(line, 34 - off, y + 30, 22, '#fff', 'left', 800, 5);
+    if (off) text(line, 34 - off + lw, y + 30, 22, '#fff', 'left', 800, 5);
+    ctx.restore();
+    return;
+  }
+  if (P !== PHASE.QUESTION) return;
+  quiz.notes.slice(0, 2).forEach((n, k) => {
+    const a = clamp(1 - (quiz.t - n.t - 5) / 1, 0, 1); if (a <= 0) return;
+    ctx.globalAlpha = a;
+    text(fitText(n.text, W - 70, 21, 800), 34, y + 16 + k * 30, 21, hsl(n.color, 15), 'left', 800, 4);
+    ctx.globalAlpha = 1;
+  });
+}
+
 function drawHerdRanking(y) {
   const P = quiz.phase;
   const hide = MONEY && P === PHASE.REVEAL && !quiz.revealDone;           // don't spoil the drop
@@ -948,6 +1012,7 @@ function drawHerdRanking(y) {
   if (!list.length) {
     text(P === PHASE.QUESTION ? `«2» = ${TH.all} 2-т · «1 60 3 40» = 60% 1-д, 40% 3-т` : 'Comment-д хариултаа бичээд тоглоорой!', W / 2, y + 74, 24, '#25f4ee', 'center', 900, 5);
     text(TH.start(CFG.startHerd), W / 2, y + 108, 19, 'rgba(255,255,255,.75)', 'center', 700, 4);
+    drawNotes(y + 130);
     return;
   }
   const cw = (W - 60 - 20) / 3, ch = 64, MED = ['#ffd166', '#d9dee8', '#e0a070'];
@@ -961,6 +1026,7 @@ function drawHerdRanking(y) {
     text(fitText(v.name, cw - 100, 19, 800), cx + 90, cy + ch / 2 - 11, 19, '#fff', 'left', 800);
     text(`${TH.unitIcon} ${TH.amount(herd)}`, cx + 90, cy + ch / 2 + 13, 18, '#ffd166', 'left', 900);
   });
+  drawNotes(y + 34 + 2 * (ch + 8) + 2);
 }
 
 function drawBoard() {
