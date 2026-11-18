@@ -25,8 +25,8 @@ const TH = MONEY ? {
   amount: (n) => fmtBig(n), all: 'бүх мөнгө', join: (v) => `💰 ${v.name} ${fmtBig(CFG.startHerd)}-өөр нэгдлээ`,
   lostLine: (n) => `${fmtBig(n)} унаж алга боллоо!`, lostStatus: (n) => `💸 ${fmtBig(n)} унаж алга боллоо`, outLine: (k) => `${k} хүн мөнгөө бүгдийг алдлаа.`,
   players: (k) => `💰 ${k} тоглогч`, best: 'Хамгийн их мөнгөтэй', bestOut: (k) => `😢 ${k} хүн мөнгөө алдлаа`, allOut: 'Энэ удаа бүгд мөнгөө алдлаа 😮',
-  start: (n) => `Хүн бүр ${fmtBig(n)} (${Math.round(n / 1e6)} боодол) виртуал мөнгөтэй эхэлнэ · «мөнгө» гэж бичвэл үлдэгдлээ харна`,
-  final: '🎉 ХАМГИЙН ИХ МӨНГӨ', board: 'МӨНГӨНИЙ', none: 'Мөнгөтэй үлдсэн хүн алга', pen: 'тавцан', startLabel: 'Эхний мөнгө (₮)',
+  start: (n) => `Баг ${fmtBig(n)} (${Math.round(n / 1e6)} боодол) виртуал мөнгөтэй эхэлнэ · «мөнгө» гэж бичвэл багийн мөнгө харагдана`,
+  final: '🎉 ТЭМЦЭЭНИЙ ДҮН', board: 'ОНООНЫ', none: 'Оноо авсан хүн алга', pen: 'тавцан', startLabel: 'Эхний мөнгө (₮)',
 } : {
   title: 'СҮРГЭЭ АВАР', icon: '🐑', unitIcon: '🐑', card: 'Хонио хуваа', split: 'ХОНИО ХУВАА!',
   amount: (n) => fmt(n), all: 'бүх хонь', join: (v) => `🐑 ${v.name} ${fmt(CFG.startHerd)} хоньтой нэгдлээ`,
@@ -162,7 +162,7 @@ const quiz = {
   feed: [], banners: [], banner: null, particles: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, board: { week: [], all: [] },
   bank: { likes: 0, secs: 0, removes: 0 }, sponsor: null, chooser: null, nextCat: null,
-  alloc: new Map(), notes: [], results: [], drops: [], revealDoneT: 0, revealDone: true, shake: 0, topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
+  alloc: new Map(), notes: [], results: [], drops: [], team: 0, teamBefore: 0, revealDoneT: 0, revealDone: true, shake: 0, topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
 
   get duration() { return CFG.answerSec + this.extra; },
 
@@ -231,6 +231,7 @@ const quiz = {
       if (m && !this.topicVoters.has(v.id)) { this.topicVoters.add(v.id); this.topicVotes[+m[1] - 1]++; this.flash.answer = this.t; audio.play('vote'); }
       return;
     }
+    if (MONEY) return this.teamComment(v, s);
     if (/^(мөнгө|хонь|үлдэгдэл|\?)/.test(s)) {                        // "how much do I have?"
       if (v.herd != null) this.note(`${v.out ? '😢' : TH.unitIcon} ${v.name}: ${v.out ? 'энэ тоглолтод хасагдсан' : 'таньд ' + TH.amount(v.herd) + ' байна'}`, CYAN);
       return;
@@ -251,18 +252,50 @@ const quiz = {
     this.flash.answer = this.t;
     audio.play('vote');
   },
+  /** MONEY: everyone is one team; each comment is a vote "how to split the team's money" */
+  teamComment(v, s) {
+    if (/^(мөнгө|үлдэгдэл|\?)/.test(s)) { this.note(`💰 Багийн мөнгө: ${TH.amount(this.team)} (${Math.round(this.team / UNIT)} боодол)`, CYAN); return; }
+    if (this.phase !== PHASE.QUESTION || this.team <= 0) return;
+    const a = parseAlloc(s, this.removed); if (!a) return;
+    const had = this.alloc.has(v.id);
+    this.alloc.set(v.id, a);
+    const parts = a.map((p, i) => [p, i]).filter(x => x[0] > 0).map(([p, i]) => `${i + 1}: ${Math.round(p)}%`);
+    this.note(`✅ ${v.name} ➜ ${parts.join(' · ')}`, OPT[a.indexOf(Math.max(...a))]);
+    this.answers.set(v.id, { opt: a.indexOf(Math.max(...a)), t: this.phaseT });
+    if (!had) { this.recent.unshift({ v, t: this.t }); if (this.recent.length > 12) this.recent.length = 12; }
+    this.flash.answer = this.t;
+    audio.play('vote');
+  },
+  /** the team's money in whole bundles: average of everyone's split, at most 3 chests, one always empty */
+  teamBundles() {
+    const B = Math.round(this.team / UNIT), avg = [0, 0, 0, 0]; let n = 0;
+    for (const a of this.alloc.values()) { for (let i = 0; i < 4; i++) avg[i] += a[i]; n++; }
+    if (!n || !B) return [0, 0, 0, 0];
+    for (const k of this.removed) avg[k] = 0;
+    const used = avg.map((p, i) => [p, i]).filter(x => x[0] > 0).sort((x, y) => y[0] - x[0]);
+    for (const [, i] of used.slice(3)) avg[i] = 0;
+    const sum = avg.reduce((x, y) => x + y, 0); if (!sum) return [0, 0, 0, 0];
+    return toBundles(avg.map(p => p * 100 / sum), B);
+  },
   /** sheep currently placed on each answer, and number of players per answer */
   placed() {
     const sh = [0, 0, 0, 0], pl = [0, 0, 0, 0];
+    if (MONEY) {
+      const tb = this.teamBundles();
+      for (const a of this.alloc.values()) for (let i = 0; i < 4; i++) if (a[i] > 0) pl[i]++;
+      return { sh: tb.map(b => b * UNIT), pl };
+    }
     for (const [id, a] of this.alloc) {
       const v = this.viewers.get(id); if (!v || !v.herd) continue;
       for (let i = 0; i < 4; i++) if (a[i] > 0) { sh[i] += v.herd * a[i] / 100; pl[i]++; }
     }
     return { sh, pl };
   },
-  herdTop(n) { return [...this.viewers.values()].filter(v => v.herd > 0).sort((a, b) => b.herd - a.herd).slice(0, n); },
+  herdTop(n) {
+    if (MONEY) return [...this.viewers.values()].filter(v => v.score > 0).sort((a, b) => b.score - a.score).slice(0, n);
+    return [...this.viewers.values()].filter(v => v.herd > 0).sort((a, b) => b.herd - a.herd).slice(0, n); },
   note(text, color) { this.notes.unshift({ text, color, t: this.t }); if (this.notes.length > 6) this.notes.length = 6; },
-  players() { let n = 0; for (const v of this.viewers.values()) if (v.herd > 0) n++; return n; },
+  players() { if (MONEY) return this.alloc.size; let n = 0; for (const v of this.viewers.values()) if (v.herd > 0) n++; return n; },
 
   checkLikeGoal() {
     if (this.likeRemoved || this.likesQ < CFG.likeGoal) return;
@@ -361,6 +394,7 @@ const quiz = {
     this.answers.clear(); this.alloc.clear(); this.lost = 0; this.outNow = 0; this.prePlaced = null; this.notes = []; this.counts = [0, 0, 0, 0]; this.removed.clear(); this.likesQ = 0; this.likeRemoved = false; this.extra = 0;
     this.recent = []; this.fastest = null; this.correctList = []; this.flags.clear();
     for (const v of this.viewers.values()) v.likeQ = 0;
+    if (MONEY && this.qIndex === 0) this.team = CFG.startHerd;
     if (HERD && !this.nextCat) {                          // viewers choose between two topics
       const td = targetDiff(this.qIndex, CFG.questionsPerGame);
       const cats = shuffle([...new Set((window.QUIZ_QUESTIONS || []).filter(q => Math.abs((q.d || 3) - td) <= 1).map(q => q.c))]);
@@ -408,17 +442,31 @@ const quiz = {
     audio.play('win'); audio.play('cheer');
     let s = `Зөв хариулт: ${NUM_WORD[q.correct].toLowerCase()}, ${q.opts[q.correct]}!`;
     if (this.lost) s += ' ' + TH.lostLine(this.lost);
-    if (this.outNow) s += ' ' + TH.outLine(this.outNow);
+    s += this.team > 0 ? ` Багт ${fmtBig(this.team).replace('₮', ' төгрөг')} үлдлээ.` : ' Баг бүх мөнгөө алдлаа!';
     commentator.say(s, 3);
-    this.burst(540, 900, GOLD, 40, 1.3);
+    if (this.team > 0) this.burst(540, 900, GOLD, 40, 1.3); else audio.play('elim');
   },
   herdReveal() {
     const q = this.cur;
-    this.preRank = this.herdTop(6).map(v => ({ v, herd: v.herd }));
-    this.prePlaced = this.placed();          // pens keep showing what was placed until it drops
+    if (MONEY) {
+      this.prePlaced = this.placed();
+      this.preRank = this.herdTop(6).map(v => ({ v, herd: v.score }));
+      const tb = this.teamBundles(), before = this.team;
+      this.team = this.alloc.size ? tb[q.correct] * UNIT : Math.floor(before / UNIT * CFG.idleKeep) * UNIT;
+      this.teamBefore = before; this.lost = before - this.team; this.outNow = 0;
+      this.results = []; let best = null;
+      for (const [id, a] of this.alloc) {
+        const v = this.viewers.get(id); if (!v) continue;
+        const pts = Math.round(a[q.correct]);                 // your own split: share you put on the right answer
+        v.score += pts; v.lastPts = pts; this.results.push({ v, pts });
+        if (!best || pts > best.lastPts) best = v;
+      }
+      this.fastest = best;
+    }
+    if (!MONEY) { this.preRank = this.herdTop(6).map(v => ({ v, herd: v.herd })); this.prePlaced = this.placed(); }
     let lost = 0, out = 0, best = null;
-    this.correctList = []; this.results = [];
-    for (const v of this.viewers.values()) {
+    if (!MONEY) { this.correctList = []; this.results = []; }
+    for (const v of (MONEY ? [] : this.viewers.values())) {
       if (!(v.herd > 0)) continue;
       const a = this.alloc.get(v.id);
       const keep = a ? a[q.correct] / 100 : CFG.idleKeep;
@@ -429,7 +477,7 @@ const quiz = {
       if (nh > 0) { this.correctList.push(v); if (!best || nh > best.herd) best = v; }
       else { v.out = true; out++; }
     }
-    this.lost = lost; this.outNow = out; this.fastest = best;
+    if (!MONEY) { this.lost = lost; this.outNow = out; this.fastest = best; }
     this.setPhase(PHASE.REVEAL);
     if (MONEY) {
       // suspense: drum roll, then the wrong chests open one at a time and the money drops
@@ -484,14 +532,15 @@ const quiz = {
   },
   afterReveal() {
     this.qIndex++;
-    if (this.qIndex >= CFG.questionsPerGame) {
+    if (this.qIndex >= CFG.questionsPerGame || (MONEY && this.team <= 0)) {
       this.setPhase(PHASE.FINAL);
       if (HERD) {
-        const entries = [...this.viewers.values()].filter(v => v.herd > 0).map(v => ({ id: v.id, name: v.name, avatar: v.avatar, add: v.herd }));
+        const entries = [...this.viewers.values()].filter(v => MONEY ? v.score > 0 : v.herd > 0).map(v => ({ id: v.id, name: v.name, avatar: v.avatar, add: MONEY ? v.score : v.herd }));
         scores.add(GAME_KEY, entries).then(r => { for (const [id, pts] of Object.entries(r.all || {})) { const v = this.viewers.get(id); if (v) v.allPts = pts; } refreshBoard(); });
       }
       const top = this.top(1)[0];
-      commentator.say(top ? `Тэмцээн өндөрлөлөө! Ялагч бол ${top.name}! Баяр хүргэе!` : 'Тэмцээн өндөрлөлөө!', 3, 'q_champion');
+      if (MONEY) commentator.say(`Тэмцээн дууслаа! Баг ${fmtBig(this.team).replace('₮', ' төгрөг')}-тэй үлдлээ!${top ? ' Шилдэг тоглогч бол ' + top.name + '!' : ''}`, 3);
+      else commentator.say(top ? `Тэмцээн өндөрлөлөө! Ялагч бол ${top.name}! Баяр хүргэе!` : 'Тэмцээн өндөрлөлөө!', 3, 'q_champion');
       audio.play('win'); audio.play('cheer');
     } else if (this.qIndex % 5 === 0) {
       this.setPhase(PHASE.BOARD);
@@ -642,8 +691,8 @@ function drawHeader() {
   else if (P === PHASE.INTRO) s = `❓ Асуулт ${quiz.qIndex + 1} удахгүй…`;
   else if (HERD && P === PHASE.QUESTION) {
     const left = Math.max(0, quiz.duration - quiz.phaseT);
-    s = `⏱ ${Math.ceil(left)}с · ${TH.players(quiz.players())}`; col = left < 5 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
-  } else if (HERD && P === PHASE.REVEAL) s = MONEY && !quiz.revealDone ? '🥁 Мөнгө хаана үлдэх бол...' : TH.lostStatus(quiz.lost);
+    s = MONEY ? `⏱ ${Math.ceil(left)}с · 💰 Баг: ${fmtBig(quiz.team)} · ${quiz.alloc.size} санал` : `⏱ ${Math.ceil(left)}с · ${TH.players(quiz.players())}`; col = left < 5 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
+  } else if (HERD && P === PHASE.REVEAL) s = MONEY ? (quiz.revealDone ? `💰 Багт ${fmtBig(quiz.team)} үлдлээ · 💸 ${fmtBig(quiz.lost)} унав` : '🥁 Мөнгө хаана үлдэх бол...') : TH.lostStatus(quiz.lost);
   else if (P === PHASE.QUESTION) {
     const left = Math.max(0, quiz.duration - quiz.phaseT);
     s = `⏱ ${Math.ceil(left)}с · ${quiz.answers.size} хариулт`; col = left < 5 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
@@ -973,19 +1022,24 @@ function drawPens(q, oy, oh, gap) {
 
 /** Live top-6 by money / sheep (replaces the shared like goal in herd & money modes). */
 function drawRule(y) {
-  const line = MONEY ? `${TH.amount(CFG.startHerd)} = ${Math.round(CFG.startHerd / UNIT)} боодол (1 боодол = 1 сая₮) · 1 хариултыг ХООСОН үлдээ`
-    : `${fmt(CFG.startHerd)} хонь · 1 хариултыг ХООСОН үлдээ`;
-  text(fitText(line, W - 60, 21, 800), W / 2, y, 21, '#ffd166', 'center', 800, 4);
+  if (MONEY) {
+    const shown = quiz.phase === PHASE.REVEAL && !quiz.revealDone ? quiz.teamBefore : quiz.team;
+    text(`👥 БҮГД НЭГ БАГ · 💰 ${fmtBig(shown)} = ${Math.round(shown / UNIT)} боодол`, W / 2, y, 25, '#ffd166', 'center', 900, 5);
+    text('Comment: «2» эсвэл «1 60 3 40» · саналын дунджаар байрлана · 1 авдар ХООСОН', W / 2, y + 30, 19, '#25f4ee', 'center', 800, 4);
+    return;
+  }
+  text(fitText(`${fmt(CFG.startHerd)} хонь · 1 хариултыг ХООСОН үлдээ`, W - 60, 21, 800), W / 2, y, 21, '#ffd166', 'center', 800, 4);
   text('Comment: «2» = бүгдийг 2-т · «1 60 3 40» = 60% нь 1-д, 40% нь 3-т', W / 2, y + 28, 20, '#25f4ee', 'center', 800, 4);
 }
 
 /** personal confirmations while answering; everyone's result after the reveal */
 function drawNotes(y) {
   const P = quiz.phase;
-  if (P === PHASE.REVEAL && (!MONEY || quiz.revealDone) && quiz.results.length) {
-    const parts = quiz.results.slice().sort((a, b) => b.after - a.after).map(r =>
-      `${r.v.name} ${TH.amount(r.before)} → ${r.after ? TH.amount(r.after) : '0 😢'}${r.idle ? ' (хариулаагүй)' : ''}`);
-    const line = '💰 Хэдтэй үлдсэн:   ' + parts.join('   ·   ') + '   ·   ';
+  if (P === PHASE.REVEAL && (!MONEY || quiz.revealDone) && (quiz.results.length || MONEY)) {
+    const parts = MONEY
+      ? quiz.results.slice().sort((a, b) => b.pts - a.pts).map(r => `${r.v.name} +${r.pts} оноо`)
+      : quiz.results.slice().sort((a, b) => b.after - a.after).map(r => `${r.v.name} ${TH.amount(r.before)} → ${r.after ? TH.amount(r.after) : '0 😢'}${r.idle ? ' (хариулаагүй)' : ''}`);
+    const line = (MONEY ? `💰 Багт ${fmtBig(quiz.team)} үлдлээ:   ` : '💰 Хэдтэй үлдсэн:   ') + parts.join('   ·   ') + '   ·   ';
     ctx.save(); ctx.beginPath(); ctx.rect(30, y, W - 60, 60); ctx.clip();
     ctx.font = `800 22px ${FONT}`; const lw = ctx.measureText(line).width;
     const off = lw > W - 60 ? (quiz.phaseT * 110) % lw : 0;
@@ -1006,11 +1060,11 @@ function drawNotes(y) {
 function drawHerdRanking(y) {
   const P = quiz.phase;
   const hide = MONEY && P === PHASE.REVEAL && !quiz.revealDone;           // don't spoil the drop
-  const list = hide ? (quiz.preRank || []) : quiz.herdTop(6).map(v => ({ v, herd: v.herd }));
+  const list = hide ? (quiz.preRank || []) : quiz.herdTop(6).map(v => ({ v, herd: MONEY ? v.score : v.herd }));
   text('🏆 ШИЛДЭГ ТОГЛОГЧИД', 34, y + 14, 22, '#ffd166', 'left', 900, 5);
-  text(TH.players(quiz.players()) + (MONEY ? ' · виртуал мөнгө, шагнал биш' : ''), W - 34, y + 14, 19, 'rgba(255,255,255,.75)', 'right', 800, 4);
+  text(MONEY ? `👥 ${quiz.alloc.size} санал · виртуал мөнгө, шагнал биш` : TH.players(quiz.players()), W - 34, y + 14, 19, 'rgba(255,255,255,.75)', 'right', 800, 4);
   if (!list.length) {
-    text(P === PHASE.QUESTION ? `«2» = ${TH.all} 2-т · «1 60 3 40» = 60% 1-д, 40% 3-т` : 'Comment-д хариултаа бичээд тоглоорой!', W / 2, y + 74, 24, '#25f4ee', 'center', 900, 5);
+    text(P === PHASE.QUESTION ? (MONEY ? 'Comment-д «2» эсвэл «1 60 3 40» гэж бичээд багтаа тусал!' : `«2» = ${TH.all} 2-т · «1 60 3 40» = 60% 1-д, 40% 3-т`) : 'Comment-д хариултаа бичээд тоглоорой!', W / 2, y + 74, 24, '#25f4ee', 'center', 900, 5);
     text(TH.start(CFG.startHerd), W / 2, y + 108, 19, 'rgba(255,255,255,.75)', 'center', 700, 4);
     drawNotes(y + 130);
     return;
@@ -1024,7 +1078,7 @@ function drawHerdRanking(y) {
     text(String(k + 1), cx + 22, cy + ch / 2 + 1, 18, '#1a0f33', 'center', 900);
     ctx.beginPath(); ctx.arc(cx + 62, cy + ch / 2, 21, 0, TAU); ctx.fillStyle = hsl(v.color); ctx.fill(); drawAvatar(v, cx + 62, cy + ch / 2, 19);
     text(fitText(v.name, cw - 100, 19, 800), cx + 90, cy + ch / 2 - 11, 19, '#fff', 'left', 800);
-    text(`${TH.unitIcon} ${TH.amount(herd)}`, cx + 90, cy + ch / 2 + 13, 18, '#ffd166', 'left', 900);
+    text(MONEY ? `⭐ ${fmt(herd)} оноо` : `${TH.unitIcon} ${TH.amount(herd)}`, cx + 90, cy + ch / 2 + 13, 18, '#ffd166', 'left', 900);
   });
   drawNotes(y + 34 + 2 * (ch + 8) + 2);
 }
@@ -1034,7 +1088,7 @@ function drawBoard() {
   if (P !== PHASE.BOARD && P !== PHASE.FINAL) return;
   const top = AREA.top - 10;
   roundRect(30, top, W - 60, AREA.bottom - top, 30); ctx.fillStyle = 'rgba(10,6,28,.88)'; ctx.fill();
-  text(P === PHASE.FINAL ? (HERD ? TH.final : '🎉 ТЭМЦЭЭНИЙ ДҮН') : `🏆 ${HERD ? TH.board : 'ОНООНЫ'} САМБАР · ${quiz.qIndex}/${CFG.questionsPerGame}`, W / 2, top + 50, 40, '#ffd166', 'center', 900, 8);
+  text(P === PHASE.FINAL ? (MONEY ? `🎉 БАГ ${fmtBig(quiz.team)}-ТЭЙ ДУУСЛАА` : HERD ? TH.final : '🎉 ТЭМЦЭЭНИЙ ДҮН') : `🏆 ${HERD ? TH.board : 'ОНООНЫ'} САМБАР · ${quiz.qIndex}/${CFG.questionsPerGame}`, W / 2, top + 50, 40, '#ffd166', 'center', 900, 8);
   const list = quiz.top(P === PHASE.FINAL ? 6 : 8);
   if (!list.length) text(HERD ? TH.none : 'Одоогоор оноо авсан хүн алга', W / 2, top + 160, 28, '#fff', 'center', 700);
   const row = (v, k, y, pts, gold) => {
@@ -1045,7 +1099,7 @@ function drawBoard() {
     const tt = titleFor(v.allPts ?? v.pts);
     if (v.streak >= 2) text(`🔥${v.streak}`, 640, y, 22, '#ffd166', 'center', 900);
     else if (tt && tt.icon) text(tt.icon, 640, y, 22, '#fff', 'center', 400);
-    text(HERD ? `${TH.unitIcon} ${TH.amount(pts)}` : fmt(pts), W - 100, y, 24, '#ffd166', 'right', 900);
+    text(MONEY ? `${fmt(pts)} оноо` : HERD ? `${TH.unitIcon} ${TH.amount(pts)}` : fmt(pts), W - 100, y, 24, '#ffd166', 'right', 900);
   };
   list.forEach((v, k) => row(v, k, top + 120 + k * 60, v.score, k === 0));
   if (P === PHASE.FINAL) {
