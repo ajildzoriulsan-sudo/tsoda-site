@@ -23,7 +23,7 @@ const fmtBig = (n) => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace('.0
 const TH = MONEY ? {
   title: 'МӨНГӨӨ ХАДГАЛ', icon: '💰', unitIcon: '💵', card: 'Мөнгөө хуваа', split: 'МӨНГӨӨ ХУВАА!',
   amount: (n) => fmtBig(n), all: 'бүх мөнгө', join: (v) => `💰 ${v.name} ${fmtBig(CFG.startHerd)}-өөр нэгдлээ`,
-  lostLine: (n) => `Буруу хариултуудад ${fmtBig(n)} шатлаа!`, lostStatus: (n) => `🔥 ${fmtBig(n)} шатлаа`, outLine: (k) => `${k} хүн мөнгөө бүгдийг алдлаа.`,
+  lostLine: (n) => `${fmtBig(n)} унаж алга боллоо!`, lostStatus: (n) => `💸 ${fmtBig(n)} унаж алга боллоо`, outLine: (k) => `${k} хүн мөнгөө бүгдийг алдлаа.`,
   players: (k) => `💰 ${k} тоглогч`, best: 'Хамгийн их мөнгөтэй', bestOut: (k) => `😢 ${k} хүн мөнгөө алдлаа`, allOut: 'Энэ удаа бүгд мөнгөө алдлаа 😮',
   start: (n) => `Шинэ тоглогч ${fmtBig(n)} виртуал мөнгөтэй эхэлнэ · хугацаа дуустал өөрчилж болно`,
   final: '🎉 ХАМГИЙН ИХ МӨНГӨ', board: 'МӨНГӨНИЙ', none: 'Мөнгөтэй үлдсэн хүн алга', pen: 'тавцан', startLabel: 'Эхний мөнгө (₮)',
@@ -142,7 +142,7 @@ const quiz = {
   feed: [], banners: [], banner: null, particles: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, board: { week: [], all: [] },
   bank: { likes: 0, secs: 0, removes: 0 }, sponsor: null, chooser: null, nextCat: null,
-  alloc: new Map(), topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
+  alloc: new Map(), drops: [], revealDoneT: 0, revealDone: true, shake: 0, topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
 
   get duration() { return CFG.answerSec + this.extra; },
 
@@ -360,6 +360,16 @@ const quiz = {
     }
     if (HERD && this.qIndex === 0) this.announce({ icon: TH.icon, text: TH.split, sub: '«2» = бүгдийг 2-т · «1 60 3 40» = 60% 1-д, 40% 3-т', color: CYAN, dur: 6, prio: 2 });
   },
+  finishMoneyReveal() {
+    this.revealDone = true;
+    const q = this.cur;
+    audio.play('win'); audio.play('cheer');
+    let s = `Зөв хариулт: ${NUM_WORD[q.correct].toLowerCase()}, ${q.opts[q.correct]}!`;
+    if (this.lost) s += ' ' + TH.lostLine(this.lost);
+    if (this.outNow) s += ' ' + TH.outLine(this.outNow);
+    commentator.say(s, 3);
+    this.burst(540, 900, GOLD, 40, 1.3);
+  },
   herdReveal() {
     const q = this.cur;
     let lost = 0, out = 0, best = null;
@@ -375,6 +385,16 @@ const quiz = {
     }
     this.lost = lost; this.outNow = out; this.fastest = best;
     this.setPhase(PHASE.REVEAL);
+    if (MONEY) {
+      // suspense: drum roll, then the wrong chests open one at a time and the money drops
+      const wrong = shuffle([0, 1, 2, 3].filter(i => i !== q.correct && !this.removed.has(i)));
+      this.drops = [0, 1, 2, 3].map(() => null);
+      wrong.forEach((i, k) => { this.drops[i] = { at: 1.6 + k * 1.6, done: false }; });
+      this.revealDoneT = 1.6 + wrong.length * 1.6 + 0.4; this.revealDone = false;
+      audio.intensity = 0; audio.play('drumroll');
+      commentator.say(pick(['Мөнгөө харцгаая...', 'Хаана нь мөнгө үлдэх бол...', 'Бэлэн үү? Харцгаая...']), 3, 'm_suspense');
+      return;
+    }
     audio.intensity = 0; audio.play('win'); setTimeout(() => audio.play(MONEY ? 'whoosh' : 'stumble'), 600);
     let s = `Зөв хариулт: ${NUM_WORD[q.correct].toLowerCase()}, ${q.opts[q.correct]}!`;
     if (lost) s += ' ' + TH.lostLine(lost);
@@ -444,7 +464,10 @@ const quiz = {
       if (left < 5.5 && !this.flags.has('5s')) { this.flags.add('5s'); audio.intensity = 2; commentator.say('Таван секунд үлдлээ!', 2, 'q_5s'); }
       if (left <= 5 && left > 0) { const n = Math.ceil(left); if (n !== this.lastBeep) { this.lastBeep = n; audio.play(n <= 3 ? 'beep' : 'tick'); } }
       if (left <= 0) this.reveal();
-    } else if (P === PHASE.REVEAL) { if (this.phaseT >= CFG.revealSec && !(window.LBLGoal && LBLGoal.trySpotlight(t => commentator.say(t, 3, 'goal_info')))) this.afterReveal(); }
+    } else if (P === PHASE.REVEAL && MONEY && !this.revealDone) {
+      this.drops.forEach(d => { if (d && !d.done && this.phaseT >= d.at) { d.done = true; audio.play('drop'); this.shake = 0.45; } });
+      if (this.phaseT >= this.revealDoneT) this.finishMoneyReveal();
+    } else if (P === PHASE.REVEAL) { if (this.phaseT >= (MONEY ? this.revealDoneT + 4.5 : CFG.revealSec) && !(window.LBLGoal && LBLGoal.trySpotlight(t => commentator.say(t, 3, 'goal_info')))) this.afterReveal(); }
     else if (P === PHASE.BOARD) { if (this.phaseT >= CFG.boardSec) this.startIntro(); }
     else if (P === PHASE.FINAL) {
       if (this.phaseT >= CFG.finalSec) {
@@ -452,6 +475,7 @@ const quiz = {
         this.qIndex = 0; this.game++; this.startIntro();
       }
     }
+    this.shake = Math.max(0, this.shake - dt);
     if (!this.banner && this.banners.length) this.banner = this.banners.shift();
     if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
     for (const q of this.particles) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 1 - 2.5 * dt; q.vy *= 1 - 2.5 * dt; }
@@ -573,7 +597,7 @@ function drawHeader() {
   else if (HERD && P === PHASE.QUESTION) {
     const left = Math.max(0, quiz.duration - quiz.phaseT);
     s = `⏱ ${Math.ceil(left)}с · ${TH.players(quiz.players())}`; col = left < 5 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
-  } else if (HERD && P === PHASE.REVEAL) s = TH.lostStatus(quiz.lost);
+  } else if (HERD && P === PHASE.REVEAL) s = MONEY && !quiz.revealDone ? '🥁 Мөнгө хаана үлдэх бол...' : TH.lostStatus(quiz.lost);
   else if (P === PHASE.QUESTION) {
     const left = Math.max(0, quiz.duration - quiz.phaseT);
     s = `⏱ ${Math.ceil(left)}с · ${quiz.answers.size} хариулт`; col = left < 5 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
@@ -735,41 +759,111 @@ function drawChest(cx, cy, col, burn, glow) {
   }
 }
 
-/** MONEY mode: four answer stations in an arc — screen with the answer above a chest with the money on it. */
-function drawStations(q, rev, sh, pl, total, chase) {
-  const xs = [148, 404, 676, 932], ys = [1010, 958, 958, 1010];
+/** Top-down chest lid (авдар) with gold ornament. burn 0..1 chars it, glow marks the right answer. */
+function drawLidTop(cx, cy, w, h, col, burn, glow) {
+  if (glow) {
+    const g = ctx.createRadialGradient(cx, cy, 30, cx, cy, 190);
+    g.addColorStop(0, `rgba(255,215,100,${0.55 + 0.25 * pulse(6)})`); g.addColorStop(1, 'rgba(255,215,100,0)');
+    ctx.fillStyle = g; ctx.fillRect(cx - 190, cy - 190, 380, 380);
+  }
+  ctx.fillStyle = 'rgba(0,0,0,.4)'; roundRect(cx - w / 2 + 8, cy - h / 2 + 10, w, h, 14); ctx.fill();      // floor shadow
+  const lg = ctx.createLinearGradient(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2);
+  lg.addColorStop(0, '#2f9cba'); lg.addColorStop(1, '#155a6e');
+  roundRect(cx - w / 2, cy - h / 2, w, h, 14); ctx.fillStyle = lg; ctx.fill();
+  ctx.lineWidth = 6; ctx.strokeStyle = hsl(col); ctx.stroke();                                         // answer colour rim
+  ctx.strokeStyle = '#e8c547'; ctx.lineWidth = 3;
+  roundRect(cx - w / 2 + 12, cy - h / 2 + 12, w - 24, h - 24, 8); ctx.stroke();
+  // өлзий knot in the middle + corner brackets
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
+  ctx.strokeRect(-22, -22, 44, 44); ctx.strokeRect(-12, -12, 24, 24); ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy, 38, 0, TAU); ctx.stroke();
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    const ex = cx + sx * (w / 2 - 22), ey = cy + sy * (h / 2 - 22);
+    ctx.beginPath(); ctx.moveTo(ex, ey - sy * 16); ctx.lineTo(ex, ey); ctx.lineTo(ex - sx * 16, ey); ctx.stroke();
+  }
+  if (burn > 0) { roundRect(cx - w / 2, cy - h / 2, w, h, 14); ctx.fillStyle = `rgba(20,8,4,${0.7 * burn})`; ctx.fill(); }
+}
+
+/** a (fictional) ₮ bundle lying flat, seen from above */
+function drawCashTop(x, y, ang, alpha, burn) {
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(ang);
+  const w = 54, h = 26;
+  roundRect(-w / 2 + 2, -h / 2 + 3, w, h, 3); ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fill();
+  roundRect(-w / 2, -h / 2, w, h, 3);
+  ctx.fillStyle = burn > 0 ? `hsl(${120 - burn * 100},${50 + burn * 40}%,${48 - burn * 18}%)` : '#7fc184'; ctx.fill();
+  ctx.strokeStyle = 'rgba(20,60,25,.85)'; ctx.lineWidth = 1.5; ctx.stroke();
+  roundRect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8, 2); ctx.strokeStyle = 'rgba(20,60,25,.4)'; ctx.stroke();
+  ctx.fillStyle = '#e8c547'; ctx.fillRect(-3, -h / 2, 6, h);                    // paper band
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(ang);
+  text('₮', -15, 1, 16, 'rgba(20,60,25,.9)', 'center', 900); ctx.restore();
+}
+
+/** MONEY mode, seen from directly above: four chests in an arc, answer label above each, money lying on the lids. */
+function drawStations(q, rev, sh, pl, total) {
+  const xs = [148, 404, 676, 932], ys = [1000, 935, 935, 1000], LW = 200, LH = 158;
+  const done = !rev || quiz.revealDone, suspense = rev && !quiz.revealDone;
   q.opts.forEach((o, i) => {
-    const cx = xs[i], cy = ys[i], col = OPT[i];
-    const removed = quiz.removed.has(i), isRight = i === q.correct, wrong = rev && !isRight;
+    const cx0 = xs[i], cy0 = ys[i], col = OPT[i];
+    const removed = quiz.removed.has(i), isRight = i === q.correct;
+    const d = rev ? quiz.drops[i] : null;
+    const dp = d ? clamp((quiz.phaseT - d.at) / 1.1, 0, 1) : 0;          // 0 → 1 drop progress
+    const dropped = d && quiz.phaseT >= d.at;
+    // chests tremble while everyone waits
+    const tremble = suspense && !dropped ? (quiz.phaseT < 1.6 ? 1.5 : 2.5) : 0;
+    const cx = cx0 + (tremble ? Math.sin(quiz.t * 47 + i) * tremble : 0), cy = cy0 + (tremble ? Math.cos(quiz.t * 53 + i) * tremble : 0);
     ctx.globalAlpha = removed ? 0.35 : 1;
-    // answer screen
-    const sw = 238, shh = 104, sx = cx - sw / 2, sy = cy - 252;
+    // answer label
+    const sw = 238, shh = 92, sx = cx0 - sw / 2, sy = cy0 - LH / 2 - shh - 12;
+    const good = rev && done && isRight;
     roundRect(sx, sy, sw, shh, 16); ctx.fillStyle = 'rgba(8,6,20,.94)'; ctx.fill();
-    ctx.lineWidth = rev && isRight ? 6 : 3;
-    ctx.strokeStyle = rev && isRight ? `rgba(109,255,176,${0.7 + 0.3 * pulse(8)})` : wrong ? '#ff4d6d' : hsl(col); ctx.stroke();
+    ctx.lineWidth = good ? 6 : 3;
+    ctx.strokeStyle = good ? `rgba(109,255,176,${0.7 + 0.3 * pulse(8)})` : dropped ? '#ff4d6d' : hsl(col); ctx.stroke();
     ctx.beginPath(); ctx.arc(sx + 4, sy + 4, 22, 0, TAU); ctx.fillStyle = hsl(col); ctx.fill();
     text(String(i + 1), sx + 4, sy + 6, 28, '#fff', 'center', 900);
     const lines = wrap(o, sw - 28, 26, 2, 800);
-    lines.forEach((l, k) => text(l, cx, sy + shh / 2 + (k - (lines.length - 1) / 2) * 30 + 2, 26, '#fff', 'center', 800));
-    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(cx - 3, sy + shh, 6, 28);
-    drawChest(cx, cy, col, wrong ? chase : 0, rev && isRight);
-    // money pile on the lid: rows of 5 / 4 / 3 bundles
+    lines.forEach((l, k) => text(l, cx0, sy + shh / 2 + (k - (lines.length - 1) / 2) * 30 + 2, 26, '#fff', 'center', 800));
+    // the lid splits and slides open over a dark pit
+    const open = clamp(dp * 2.2, 0, 1);
+    if (open > 0) {
+      roundRect(cx - LW / 2, cy - LH / 2, LW, LH, 14);
+      const pit = ctx.createRadialGradient(cx, cy, 10, cx, cy, LW * 0.7);
+      pit.addColorStop(0, '#000'); pit.addColorStop(1, '#1a0a06'); ctx.fillStyle = pit; ctx.fill();
+      ctx.lineWidth = 6; ctx.strokeStyle = hsl(col); ctx.stroke();
+    }
+    if (open < 1) {
+      ctx.save();
+      if (open > 0) {                                   // two halves sliding apart
+        const half = (LW / 2) * (1 - open);
+        ctx.beginPath(); ctx.rect(cx - LW / 2, cy - LH / 2 - 10, half, LH + 20); ctx.rect(cx + LW / 2 - half, cy - LH / 2 - 10, half, LH + 20); ctx.clip();
+      }
+      drawLidTop(cx, cy, LW, LH, col, 0, good);
+      ctx.restore();
+    } else if (good) drawLidTop(cx, cy, LW, LH, col, 0, true);
+    // money on the lid; falls into the pit when it opens
     const f = sh[i] / total, n = sh[i] ? clamp(Math.round(f * 12), 1, 12) : 0;
+    const fall = clamp((dp - 0.12) / 0.75, 0, 1);
     for (let k = 0; k < n; k++) {
-      const row = k < 5 ? 0 : k < 9 ? 1 : 2, idx = row === 0 ? k : row === 1 ? k - 5 : k - 9, cnt = [5, 4, 3][row];
-      let bx = cx + (idx - (cnt - 1) / 2) * 34, by = cy - 70 - row * 15, al = 1;
-      if (wrong) { by -= chase * 30; al = 1 - chase; }
-      if (al > 0.02) drawCash(bx, by, 12, al, wrong ? chase : 0);
+      const c = k % 3, r = Math.floor(k / 3);
+      const jx = Math.sin(k * 12.9 + i) * 5, jy = Math.cos(k * 7.3 + i) * 4, ang = Math.sin(k * 3.1 + i * 2) * 0.25;
+      let bx = cx + (c - 1) * 58 + jx, by = cy - 51 + r * 34 + jy;
+      if (fall > 0) {                                   // shrink toward the centre of the pit = falling away
+        const e = fall * fall;
+        bx = bx + (cx - bx) * e; by = by + (cy - by) * e;
+        ctx.save(); ctx.translate(bx, by); ctx.scale(1 - 0.8 * e, 1 - 0.8 * e); ctx.translate(-bx, -by);
+        drawCashTop(bx, by, ang + e * (k % 2 ? 2 : -2), 1 - e * 0.9, 0);
+        ctx.restore();
+      } else drawCashTop(bx, by, ang, 1, 0);
     }
-    if (wrong && chase < 1 && n) {
-      for (let k = 0; k < 3; k++) text('🔥', cx - 50 + k * 50, cy - 86 - Math.abs(Math.sin(quiz.t * 9 + k)) * 10, 38 * (0.6 + chase * 0.6), '#fff', 'center', 400);
-      if (Math.random() < 0.5) quiz.particles.push({ x: cx + rand(-70, 70), y: cy - 80, vx: rand(-30, 30), vy: rand(-160, -60), life: 0.8, t: 0, r: rand(3, 6), color: { h: 25, s: 100, l: 55 } });
+    if (dropped && dp < 0.7) {                          // the "ПАЛ!" moment
+      const k = dp / 0.7;
+      text('ПАЛ!', cx0, cy0 - 10 - k * 20, 54 * (1 + 0.3 * (1 - k)), `rgba(255,77,109,${1 - k})`, 'center', 900, 8);
     }
-    const shown = wrong ? sh[i] * (1 - chase) : sh[i];
-    text(`💵 ${TH.amount(shown)}`, cx, cy + 76, 24, '#fff', 'center', 900, 5);
-    text(`${pl[i]} хүн · ${Math.round(f * 100)}%`, cx, cy + 102, 18, 'rgba(255,255,255,.8)', 'center', 800, 4);
-    if (removed) text('✖', cx, cy, 90, '#ff4d6d', 'center', 900, 8);
-    if (rev && isRight) text('✅', cx, sy - 20, 40, '#fff', 'center', 400);
+    const shown = dropped ? sh[i] * (1 - fall) : sh[i];
+    text(`💵 ${TH.amount(shown)}`, cx0, cy0 + LH / 2 + 22, 24, dropped ? '#ff8a9a' : '#fff', 'center', 900, 5);
+    text(`${pl[i]} хүн · ${Math.round(f * 100)}%`, cx0, cy0 + LH / 2 + 46, 18, 'rgba(255,255,255,.8)', 'center', 800, 4);
+    if (removed) text('✖', cx0, cy0, 100, '#ff4d6d', 'center', 900, 8);
+    if (good) text('✅', cx0 + sw / 2 - 6, sy + 4, 38, '#fff', 'center', 400);
     ctx.globalAlpha = 1;
   });
 }
@@ -788,7 +882,7 @@ function drawPens(q, oy, oh, gap) {
   const { sh, pl } = quiz.placed();
   const total = Math.max(1, sh.reduce((a, b) => a + b, 0));
   const chase = rev ? clamp(quiz.phaseT / 2.4, 0, 1) : 0;
-  if (MONEY) drawStations(q, rev, sh, pl, total, chase);
+  if (MONEY) drawStations(q, rev, sh, pl, total);
   else q.opts.forEach((o, i) => {
     const y = oy + i * (oh + gap);
     const removed = quiz.removed.has(i), isRight = i === q.correct, wrong = rev && !isRight;
@@ -844,7 +938,7 @@ function drawPens(q, oy, oh, gap) {
         text(main, x, ry + 26, 16, '#fff', 'center', 800, 3);
       });
     }
-  } else if (P === PHASE.REVEAL) {
+  } else if (P === PHASE.REVEAL && !(MONEY && !quiz.revealDone)) {
     const f = quiz.fastest;
     if (f) {
       ctx.beginPath(); ctx.arc(70, ry, 32, 0, TAU); ctx.fillStyle = '#ffd166'; ctx.fill(); drawAvatar(f, 70, ry, 28);
@@ -908,8 +1002,11 @@ let audioHint = false;
 function render() {
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.drawImage(bgCanvas, 0, 0, W, H);
+  ctx.save();
+  if (quiz.shake > 0) ctx.translate(rand(-1, 1) * quiz.shake * 22, rand(-1, 1) * quiz.shake * 22);
   drawQuestion();
   drawBoard();
+  ctx.restore();
   if (window.LBLGoal) LBLGoal.drawSpotlight(ctx, 30, AREA.top - 10, W - 60, AREA.bottom - AREA.top + 10);
   for (const q of quiz.particles) {
     const a = 1 - q.t / q.life; ctx.globalAlpha = a; ctx.fillStyle = hsl(q.color, 10);
@@ -977,6 +1074,7 @@ const QUIZ_LINES = [
   ['goal_info',  'Тоглоомын танилцуулга', 'МАЛЧИН тоглоомын тухай... (өөрийн танилцуулгаа бичнэ)'],
   ['goal_step',  'Зорилгын 25/50/75%',   'Зорилгын нэг хэсэг биеллээ! Баярлалаа!'],
   ['goal_done',  'Зорилго биелэх',       'Зорилго биеллээ! Бүгдэд баярлалаа!'],
+  ['m_suspense', 'Мөнгө: хүлээлт',      'Мөнгөө харцгаая...'],
   ['h_topic',    'Сэдэв сонгох (сүрэг)', 'Сэдвээ сонгоцгооё! Коммент хэсэгт нэг эсвэл хоёр гэж бичээрэй!'],
   ['q_champion', 'Тэмцээн өндөрлөх',     'Тэмцээн өндөрлөлөө! Баяр хүргэе!'],
 ];

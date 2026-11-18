@@ -175,6 +175,15 @@ const SFX = {
     a.noise(2.2, { type: 'bandpass', from: 500, to: 1400, q: 0.6, vol: 0.45, attack: 0.25 });
     for (let i = 0; i < 6; i++) a.tone(220 + Math.random() * 260, 0.25, { to: 160, type: 'sawtooth', vol: 0.03, lp: 1200, at: 0.1 + Math.random() * 0.9 });
   },
+  // deep "пал" of money dropping into the pit
+  drop: (a) => {
+    a.tone(90, 0.7, { to: 32, type: 'sine', vol: 0.75 });
+    a.tone(180, 0.25, { to: 60, type: 'triangle', vol: 0.3 });
+    a.noise(0.35, { from: 900, to: 120, vol: 0.4 });
+    a.noise(0.9, { type: 'lowpass', from: 300, to: 60, vol: 0.18, at: 0.1 });
+  },
+  // suspense drum roll (~1.5 s)
+  drumroll: (a) => { for (let i = 0; i < 26; i++) a.noise(0.06, { type: 'bandpass', from: 220 + i * 6, q: 1.2, vol: 0.12 + i * 0.008, at: i * 0.055 }); a.tone(70, 0.3, { to: 50, vol: 0.4, at: 1.45 }); },
   box: (a) => [880, 1175, 1568, 2093].forEach((f, i) => a.tone(f, 0.12, { type: 'sine', vol: 0.1, at: i * 0.05 })),
   vote: (a) => { a.tone(660, 0.08, { type: 'triangle', vol: 0.15 }); a.tone(990, 0.1, { type: 'triangle', vol: 0.12, at: 0.06 }); },
 };
