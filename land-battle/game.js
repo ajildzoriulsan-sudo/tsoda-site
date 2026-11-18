@@ -20,7 +20,11 @@ const DEFAULT_CONFIG = {
   baseRadius: 24,
   areaPerPoint: 9,
   maxRadius: 100,
-  likePoints: 1,
+  likePoints: 3,           // growth per like (3 → ~64 likes to double the radius)
+  commentPoints: 8,       // growth per comment (max one every commentCooldown s)
+  commentCooldown: 4,
+  passivePoints: 1.5,     // growth per second just for staying alive in battle
+  killAbsorb: 0.35,       // share of the victim's size the pusher absorbs
   likesPerSecCap: 10,     // anti-spam: likes/sec counted per user
   likeBurst: 40,
   roseBonus: 20,
@@ -62,9 +66,9 @@ const DEFAULT_CONFIG = {
   killScore: 50,
   winScore: 250,
 };
-const CFG_KEY = 'lbl.config.v2';
+const CFG_KEY = 'lbl.config.v3';
 const CONFIG_LABELS = {
-  areaPerPoint: 'Оноо → хэмжээ', maxRadius: 'Хамгийн их радиус', likePoints: 'Like оноо',
+  areaPerPoint: 'Оноо → хэмжээ', maxRadius: 'Хамгийн их радиус', likePoints: 'Like оноо', commentPoints: 'Comment оноо', passivePoints: 'Амьд байх өсөлт/сек', killAbsorb: 'Шахалтаар авах хэсэг',
   likesPerSecCap: 'Like/сек хязгаар', roseBonus: 'Rose бонус', pointsPerDiamond: 'Оноо / 💎',
   smallGiftMax: 'Жижиг gift ≤ 💎', growthBoostSec: 'Өсөлт boost (сек)', powerSec: 'Хүч boost (сек)',
   powerMult: 'Хүч ×', lives: 'Амь', baseSpeed: 'Хурд', pushStrength: 'Түлхэх хүч', edgeGrip: 'Захын барьц',
@@ -254,10 +258,15 @@ const game = {
 
   onComment(user, text) {
     const cmd = text.trim().toLowerCase();
-    const isJoin = /^!(join|play|rejoin|орох|тоглох)/.test(cmd);
-    const p = this.player(user, (!!user?.isFollower || !CFG.requireFollow) && isJoin);
+    // any comment from a follower joins the game and gives a little growth — no tapping needed
+    const p = this.player(user, !!user?.isFollower || !CFG.requireFollow);
     if (!p) return;
-    if (isJoin) { this.tryEnter(p); return; }
+    if (!p.inArena) this.tryEnter(p);
+    if (this.t - (p.commentAt ?? -99) >= CFG.commentCooldown) {
+      p.commentAt = this.t;
+      this.flash.like = this.t;
+      this.addPoints(p, CFG.commentPoints, `💬 +${CFG.commentPoints}`);
+    }
     if (cmd.startsWith('!stats') || cmd.startsWith('!оноо')) {
       const rank = this.ranking().indexOf(p) + 1;
       this.pushFeed(`📊 ${p.name} #${rank || '-'} · ${fmt(p.score)}`, p.color);
@@ -340,6 +349,7 @@ const game = {
     const credited = killer && killer.alive && killer !== p;
     if (credited) {
       killer.kills++; killer.score += CFG.killScore;
+      killer.points += p.points * CFG.killAbsorb; // absorb part of the victim's size
       this.floaters.push({ x: killer.x, y: killer.y - killer.r, text: `⚔ +${CFG.killScore}`, color: killer.color, t: 0 });
     }
     this.burst(p.x, p.y, p.color, 34, 1.2);
@@ -438,7 +448,7 @@ const game = {
         if (this.t - this.lastNag > 35) {
           this.lastNag = this.t;
           this.announce({ icon: '➕', text: 'FOLLOW дараад тогло!', sub: 'Like = томрох · Gift = хүч', color: CYAN, dur: 3, prio: 2,
-            voice: pick(['Follow дараад тоглоомд ороорой! Like дарвал бөмбөлөг чинь томорно!', 'Тоглогч хүлээж байна! Follow дараад нэгдээрэй!']), vprio: 2, vkey: 'lobby' });
+            voice: pick(['Follow дараад тоглоомд ороорой! Like эсвэл комментоор бөмбөлөг чинь томорно!', 'Тоглогч хүлээж байна! Follow дараад нэгдээрэй!']), vprio: 2, vkey: 'lobby' });
         }
       } else {
         const n = Math.ceil(CFG.lobbySec - this.stateT);
@@ -447,7 +457,7 @@ const game = {
         if (this.stateT >= CFG.lobbySec) { this.lastBeep = 0; this.setState(STATE.BATTLE); }
       }
     } else if (this.state === STATE.BATTLE) {
-      for (const p of this.arena) if (p.alive) { p.score += CFG.scorePerSec * dt; p.roundSurvive += dt; }
+      for (const p of this.arena) if (p.alive) { p.score += CFG.scorePerSec * dt; p.roundSurvive += dt; p.points += CFG.passivePoints * dt; }
       const s = clamp((this.stateT - CFG.shrinkStartSec) / CFG.shrinkDurSec, 0, 1);
       this.arenaR = lerp(ARENA.R0, ARENA.R0 * CFG.arenaMinFrac, s * s * (3 - 2 * s));
       if (this.stateT > CFG.shrinkStartSec && !this.flags.has('shrink')) {
@@ -863,7 +873,7 @@ function drawHeader() {
   // HOW TO PLAY strip — always visible, the action that just happened lights up
   const cards = [
     ['follow', '➕', 'FOLLOW', 'Тоглоомд орох', CYAN],
-    ['like', '❤', 'LIKE', 'Томрох', RED],
+    ['like', '❤', 'LIKE 💬', 'Томрох', RED],
     ['rose', '🌹', 'ROSE', 'Буцаж орох', { h: 330, s: 90, l: 62 }],
     ['gift', '🎁', 'GIFT', 'Хүч ×2', GOLD],
   ];
@@ -982,7 +992,7 @@ function drawLobbyOverlay() {
   if (alive >= CFG.minPlayers) {
     const rem = CFG.lobbySec - game.stateT, n = Math.ceil(rem), k = 1 + 0.25 * (rem % 1);
     text(String(n), ARENA.x, ARENA.y + 20, 150 * k, n <= 3 ? '#ff4d6d' : '#ffd166', 'center', 900, 16);
-    text('Like дараад томор!', ARENA.x, ARENA.y + 140, 34, '#fff', 'center', 800, 8);
+    text('Like эсвэл коммент = томрох!', ARENA.x, ARENA.y + 140, 34, '#fff', 'center', 800, 8);
   } else {
     const k = 1 + 0.05 * pulse(4);
     text('➕ FOLLOW', ARENA.x, ARENA.y - 20, 72 * k, '#25f4ee', 'center', 900, 14);
