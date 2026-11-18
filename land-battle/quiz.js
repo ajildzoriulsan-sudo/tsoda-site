@@ -72,7 +72,7 @@ function saveConfig() { try { localStorage.setItem(CFG_KEY, JSON.stringify(CFG))
 const W = 1080, H = 1920, TAU = Math.PI * 2;
 const SAFE = { top: 140, bottom: 1300 };
 const AREA = { top: 440, bottom: 1290 };
-if (HERD) AREA.top = 350;               // herd/money: no how-to strip, everything moves up
+if (HERD) AREA.top = MONEY ? 382 : 350;   // money mode also has the step ladder under the status line               // herd/money: no how-to strip, everything moves up
 const OPT = [{ h: 355, s: 80, l: 55 }, { h: 212, s: 85, l: 55 }, { h: 44, s: 92, l: 50 }, { h: 140, s: 65, l: 42 }];
 const GOLD = { h: 45, s: 100, l: 60 }, RED = { h: 350, s: 95, l: 62 }, CYAN = { h: 178, s: 90, l: 55 }, GREEN = { h: 140, s: 85, l: 55 };
 const PINK = { h: 330, s: 90, l: 62 };
@@ -162,7 +162,7 @@ const quiz = {
   feed: [], banners: [], banner: null, particles: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, board: { week: [], all: [] },
   bank: { likes: 0, secs: 0, removes: 0 }, sponsor: null, chooser: null, nextCat: null,
-  alloc: new Map(), notes: [], results: [], drops: [], team: 0, teamBefore: 0, revealDoneT: 0, revealDone: true, shake: 0, topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
+  alloc: new Map(), notes: [], results: [], drops: [], team: 0, teamBefore: 0, ladder: [], sadUntil: 0, sadFull: false, revealDoneT: 0, revealDone: true, shake: 0, topics: [], topicVotes: [0, 0], topicVoters: new Set(), lost: 0, outNow: 0,
 
   get duration() { return CFG.answerSec + this.extra; },
 
@@ -394,7 +394,7 @@ const quiz = {
     this.answers.clear(); this.alloc.clear(); this.lost = 0; this.outNow = 0; this.prePlaced = null; this.notes = []; this.counts = [0, 0, 0, 0]; this.removed.clear(); this.likesQ = 0; this.likeRemoved = false; this.extra = 0;
     this.recent = []; this.fastest = null; this.correctList = []; this.flags.clear();
     for (const v of this.viewers.values()) v.likeQ = 0;
-    if (MONEY && this.qIndex === 0) this.team = CFG.startHerd;
+    if (MONEY && this.qIndex === 0) { this.team = CFG.startHerd; this.ladder = [CFG.startHerd]; this.sadFull = false; this.sadUntil = 0; }
     if (HERD && !this.nextCat) {                          // viewers choose between two topics
       const td = targetDiff(this.qIndex, CFG.questionsPerGame);
       const cats = shuffle([...new Set((window.QUIZ_QUESTIONS || []).filter(q => Math.abs((q.d || 3) - td) <= 1).map(q => q.c))]);
@@ -438,13 +438,25 @@ const quiz = {
   },
   finishMoneyReveal() {
     this.revealDone = true;
-    const q = this.cur;
-    audio.play('win'); audio.play('cheer');
-    let s = `Зөв хариулт: ${NUM_WORD[q.correct].toLowerCase()}, ${q.opts[q.correct]}!`;
-    if (this.lost) s += ' ' + TH.lostLine(this.lost);
-    s += this.team > 0 ? ` Багт ${fmtBig(this.team).replace('₮', ' төгрөг')} үлдлээ.` : ' Баг бүх мөнгөө алдлаа!';
-    commentator.say(s, 3);
-    if (this.team > 0) this.burst(540, 900, GOLD, 40, 1.3); else audio.play('elim');
+    const q = this.cur, step = this.qIndex + 1, loss = this.teamBefore ? this.lost / this.teamBefore : 0;
+    const say = (t) => commentator.say(t.replace(/₮/g, ' төгрөг'), 3);
+    const right = `Зөв хариулт: ${NUM_WORD[q.correct].toLowerCase()}, ${q.opts[q.correct]}.`;
+    if (this.team <= 0) {                                           // everything is gone — let it hurt
+      this.sadFull = true; this.sadUntil = this.t + 999;
+      audio.intensity = 0; audio.play('sad');
+      this.announce({ icon: '😢', text: 'БАГ БҮХ МӨНГӨӨ АЛДЛАА', sub: `${step}-р шатанд ${fmtBig(this.teamBefore)} бүгд унав...`, color: { h: 215, s: 25, l: 60 }, dur: 4.5, prio: 3 });
+      say(`Өө... харамсалтай. ${right} Баг бүх мөнгөө алдлаа...`);
+    } else if (loss >= 0.5) {                                       // most of it fell
+      this.sadUntil = this.t + 3;
+      audio.play('sigh');
+      this.announce({ icon: '😔', text: `${step}-р шат: ${fmtBig(this.team)} үлдлээ`, sub: `−${fmtBig(this.lost)} унав... харамсалтай`, color: { h: 215, s: 35, l: 62 }, dur: 3, prio: 3 });
+      say(`Өө... ${right} ${fmtBig(this.lost)} унав. Багт ${fmtBig(this.team)} л үлдлээ.`);
+    } else {
+      audio.play('win'); audio.play('cheer');
+      this.announce({ icon: '💰', text: `${step}-р шат: ${fmtBig(this.team)} үлдлээ`, sub: this.lost ? `−${fmtBig(this.lost)} унав` : 'Нэг ч төгрөг унасангүй!', color: GOLD, dur: 3, prio: 3 });
+      say(`${right} ${this.lost ? fmtBig(this.lost) + ' унав. ' : 'Гайхалтай! '}Багт ${fmtBig(this.team)} үлдлээ.`);
+      this.burst(540, 900, GOLD, 40, 1.3);
+    }
   },
   herdReveal() {
     const q = this.cur;
@@ -454,6 +466,7 @@ const quiz = {
       const tb = this.teamBundles(), before = this.team;
       this.team = this.alloc.size ? tb[q.correct] * UNIT : Math.floor(before / UNIT * CFG.idleKeep) * UNIT;
       this.teamBefore = before; this.lost = before - this.team; this.outNow = 0;
+      this.ladder.push(this.team);
       this.results = []; let best = null;
       for (const [id, a] of this.alloc) {
         const v = this.viewers.get(id); if (!v) continue;
@@ -567,10 +580,13 @@ const quiz = {
     else if (P === PHASE.FINAL) {
       if (this.phaseT >= CFG.finalSec) {
         for (const v of this.viewers.values()) { v.score = 0; v.streak = 0; v.correct = 0; v.herd = null; v.out = false; v.lateHint = false; }
+        this.sadFull = false; this.sadUntil = 0;
         this.qIndex = 0; this.game++; this.startIntro();
       }
     }
     this.shake = Math.max(0, this.shake - dt);
+    if (MONEY && this.t < this.sadUntil && (this.sadFull || this.sadUntil - this.t < 3))
+      for (let k = 0; k < (this.sadFull ? 3 : 1); k++) this.particles.push({ x: rand(0, W), y: rand(140, 400), vx: -40, vy: rand(700, 900), life: 1.4, t: 0, r: 2, color: { h: 210, s: 40, l: 75 }, rain: true });
     if (!this.banner && this.banners.length) this.banner = this.banners.shift();
     if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
     for (const q of this.particles) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 1 - 2.5 * dt; q.vy *= 1 - 2.5 * dt; }
@@ -703,9 +719,28 @@ function drawHeader() {
   text(fitText(s, W - 330, 31, 900), 34, sy, 31, col, 'left', 900, 7);
   text(`❤ ${fmt(quiz.totalLikes)}  💎 ${fmt(quiz.totalDiamonds)}`, W - 30, sy, 22, 'rgba(255,255,255,.8)', 'right', 800, 5);
   const champ = quiz.board.week && quiz.board.week[0];
-  if (champ) text(fitText(`👑 7 хоног: ${champ.name}`, 330, 20, 800), W - 30, sy + 44, 20, '#ffd166', 'right', 800, 5);
+  if (champ && !MONEY) text(fitText(`👑 7 хоног: ${champ.name}`, 330, 20, 800), W - 30, sy + 44, 20, '#ffd166', 'right', 800, 5);
+  if (MONEY) { drawLadder(sy + 54); return; }
   const f = quiz.feed[0];
   if (f && quiz.t - f.t < 4) text(fitText(f.text, W - 420, 22, 700), 34, sy + 44, 22, hsl(f.color, 15), 'left', 700, 5);
+}
+
+/** money mode: the steps of the game and how much the team had left after each */
+function drawLadder(y) {
+  const n = CFG.questionsPerGame, x0 = 70, x1 = W - 70, step = (x1 - x0) / n;
+  const hidden = quiz.phase === PHASE.REVEAL && !quiz.revealDone;           // don't show the new amount before the drop
+  const known = hidden ? quiz.ladder.length - 1 : quiz.ladder.length;
+  ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  if (known > 1) { ctx.strokeStyle = '#ffd166'; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + step * (known - 1), y); ctx.stroke(); }
+  for (let i = 0; i <= n; i++) {
+    const x = x0 + i * step, done = i < known, cur = i === known && quiz.phase !== PHASE.FINAL;
+    const amt = done ? quiz.ladder[i] : null, zero = done && amt === 0;
+    ctx.beginPath(); ctx.arc(x, y, cur ? 17 : 14, 0, TAU);
+    ctx.fillStyle = zero ? '#5b6b7d' : done ? '#ffd166' : cur ? `rgba(255,45,85,${0.6 + 0.4 * pulse(6)})` : 'rgba(255,255,255,.18)'; ctx.fill();
+    text(i === 0 ? '★' : String(i), x, y + 1, i === 0 ? 16 : 16, done ? '#1a0f33' : '#fff', 'center', 900);
+    if (done) text(zero ? '0 😢' : `${Math.round(amt / UNIT)} сая`, x, y + 30, 17, zero ? '#9fb3c8' : '#ffd166', 'center', 900, 4);
+    else if (cur) text('?', x, y + 30, 18, '#fff', 'center', 900, 4);
+  }
 }
 
 function drawQuestion() {
@@ -1088,7 +1123,7 @@ function drawBoard() {
   if (P !== PHASE.BOARD && P !== PHASE.FINAL) return;
   const top = AREA.top - 10;
   roundRect(30, top, W - 60, AREA.bottom - top, 30); ctx.fillStyle = 'rgba(10,6,28,.88)'; ctx.fill();
-  text(P === PHASE.FINAL ? (MONEY ? `🎉 БАГ ${fmtBig(quiz.team)}-ТЭЙ ДУУСЛАА` : HERD ? TH.final : '🎉 ТЭМЦЭЭНИЙ ДҮН') : `🏆 ${HERD ? TH.board : 'ОНООНЫ'} САМБАР · ${quiz.qIndex}/${CFG.questionsPerGame}`, W / 2, top + 50, 40, '#ffd166', 'center', 900, 8);
+  text(P === PHASE.FINAL ? (MONEY ? (quiz.team > 0 ? `🎉 БАГ ${fmtBig(quiz.team)}-ТЭЙ ДУУСЛАА` : '😢 БАГ БҮХ МӨНГӨӨ АЛДЛАА') : HERD ? TH.final : '🎉 ТЭМЦЭЭНИЙ ДҮН') : `🏆 ${HERD ? TH.board : 'ОНООНЫ'} САМБАР · ${quiz.qIndex}/${CFG.questionsPerGame}`, W / 2, top + 50, 40, '#ffd166', 'center', 900, 8);
   const list = quiz.top(P === PHASE.FINAL ? 6 : 8);
   if (!list.length) text(HERD ? TH.none : 'Одоогоор оноо авсан хүн алга', W / 2, top + 160, 28, '#fff', 'center', 700);
   const row = (v, k, y, pts, gold) => {
@@ -1105,8 +1140,9 @@ function drawBoard() {
   if (P === PHASE.FINAL) {
     text('👑 ЭНЭ 7 ХОНОГИЙН АВАРГА', W / 2, top + 500, 26, '#ffd166', 'center', 900, 6);
     (quiz.board.week || []).slice(0, 3).forEach((r, k) => row({ name: r.name, avatar: r.avatar, color: GOLD, pts: r.pts }, k, top + 556 + k * 60, r.pts, k === 0));
-    text(`Шинэ тоглолт ${Math.ceil(CFG.finalSec - quiz.phaseT)}с`, W / 2, AREA.bottom - 30, 22, 'rgba(255,255,255,.7)', 'center', 700);
-    if (Math.random() < 0.6) quiz.particles.push({ x: rand(0, W), y: AREA.top, vx: rand(-50, 50), vy: rand(200, 420), life: 2.2, t: 0, r: rand(5, 10), color: nextColor(), confetti: true });
+    if (MONEY) text(fitText('Шат бүрт: ' + quiz.ladder.map(v => Math.round(v / UNIT)).join(' → ') + ' сая', W - 120, 24, 800), W / 2, AREA.bottom - 66, 24, quiz.team > 0 ? '#ffd166' : '#9fb3c8', 'center', 800, 5);
+    text(MONEY && quiz.team <= 0 ? `Харамсалтай... Дараагийн тоглолт ${Math.ceil(CFG.finalSec - quiz.phaseT)}с — эргээд ирээрэй!` : `Шинэ тоглолт ${Math.ceil(CFG.finalSec - quiz.phaseT)}с`, W / 2, AREA.bottom - 30, 22, 'rgba(255,255,255,.7)', 'center', 700);
+    if (Math.random() < 0.6 && !(MONEY && quiz.team <= 0)) quiz.particles.push({ x: rand(0, W), y: AREA.top, vx: rand(-50, 50), vy: rand(200, 420), life: 2.2, t: 0, r: rand(5, 10), color: nextColor(), confetti: true });
   } else text(`Дараагийн асуулт ${Math.ceil(CFG.boardSec - quiz.phaseT)}с`, W / 2, AREA.bottom - 30, 22, 'rgba(255,255,255,.7)', 'center', 700);
 }
 
@@ -1142,10 +1178,16 @@ function render() {
   drawQuestion();
   drawBoard();
   ctx.restore();
+  if (MONEY && quiz.t < quiz.sadUntil) {                          // sadness: colour drains out, blue-grey tint
+    const k = quiz.sadFull ? clamp((quiz.t - (quiz.sadUntil - 999)) / 1.5, 0, 1) : clamp((quiz.sadUntil - quiz.t) / 0.6, 0, 1) * 0.6;
+    ctx.save(); ctx.globalAlpha = k; ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = '#808080'; ctx.fillRect(0, SAFE.top, W, SAFE.bottom - SAFE.top); ctx.restore();
+    ctx.fillStyle = `rgba(20,30,55,${0.35 * k})`; ctx.fillRect(0, SAFE.top, W, SAFE.bottom - SAFE.top);
+  }
   if (window.LBLGoal) LBLGoal.drawSpotlight(ctx, 30, AREA.top - 10, W - 60, AREA.bottom - AREA.top + 10);
   for (const q of quiz.particles) {
     const a = 1 - q.t / q.life; ctx.globalAlpha = a; ctx.fillStyle = hsl(q.color, 10);
-    if (q.confetti) { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.t * 6 + q.r); ctx.fillRect(-q.r, -q.r / 2, q.r * 2, q.r); ctx.restore(); }
+    if (q.rain) { ctx.globalAlpha = 0.5; ctx.fillRect(q.x, q.y, 2, 22); }
+    else if (q.confetti) { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.t * 6 + q.r); ctx.fillRect(-q.r, -q.r / 2, q.r * 2, q.r); ctx.restore(); }
     else { ctx.beginPath(); ctx.arc(q.x, q.y, q.r * a, 0, TAU); ctx.fill(); }
   }
   ctx.globalAlpha = 1;

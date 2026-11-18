@@ -175,6 +175,17 @@ const SFX = {
     a.noise(2.2, { type: 'bandpass', from: 500, to: 1400, q: 0.6, vol: 0.45, attack: 0.25 });
     for (let i = 0; i < 6; i++) a.tone(220 + Math.random() * 260, 0.25, { to: 160, type: 'sawtooth', vol: 0.03, lp: 1200, at: 0.1 + Math.random() * 0.9 });
   },
+  // sad "wah-wah-wah-waaah" (descending, with a wobble on the last note)
+  sad: (a) => {
+    const notes = [[392, 0, 0.42], [370, 0.45, 0.42], [349, 0.9, 0.42], [330, 1.35, 1.4]];
+    for (const [f, at, d] of notes) {
+      a.tone(f, d, { type: 'sawtooth', vol: 0.16, lp: 900, at, attack: 0.04 });
+      a.tone(f / 2, d, { type: 'triangle', vol: 0.1, at });
+    }
+    for (let k = 0; k < 7; k++) a.tone(330 - (k % 2) * 14, 0.18, { type: 'sawtooth', vol: 0.05, lp: 700, at: 1.45 + k * 0.17 });
+  },
+  // short disappointed "өө…"
+  sigh: (a) => { a.tone(330, 0.35, { to: 262, type: 'triangle', vol: 0.2 }); a.tone(262, 0.6, { to: 196, type: 'triangle', vol: 0.18, at: 0.35 }); },
   // deep "пал" of money dropping into the pit
   drop: (a) => {
     a.tone(90, 0.7, { to: 32, type: 'sine', vol: 0.75 });
