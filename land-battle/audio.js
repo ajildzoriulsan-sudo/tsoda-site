@@ -100,6 +100,21 @@ const audio = {
     if (fx) fx(this, clamp01(k));
   },
 
+  // ── crowd ambience (Naadam spectators): filtered noise bed, level 0..1 ──
+  crowdGain: null,
+  setCrowd(level) {
+    if (!this.ctx) return;
+    if (!this.crowdGain) {
+      const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+      const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 0.7;
+      const lfo = this.ctx.createOscillator(), lfoG = this.ctx.createGain(); lfo.frequency.value = 0.23; lfoG.gain.value = 250;
+      lfo.connect(lfoG); lfoG.connect(bp.frequency); lfo.start();
+      this.crowdGain = this.ctx.createGain(); this.crowdGain.gain.value = 0;
+      src.connect(bp); bp.connect(this.crowdGain); this.crowdGain.connect(this.sfxBus); src.start();
+    }
+    this.crowdGain.gain.setTargetAtTime(0.09 * Math.max(0, level), this.ctx.currentTime, 0.8);
+  },
+
   // ── tiny procedural music loop; gets busier during battle ──
   startMusic() {
     if (!this.ctx || this.musicTimer) return;
@@ -155,6 +170,11 @@ const SFX = {
   splash: (a) => a.noise(0.25, { type: 'bandpass', from: 1800, to: 700, q: 0.8, vol: 0.12 }),
   stumble: (a) => { a.tone(500, 0.35, { to: 140, type: 'square', vol: 0.09, lp: 1500 }); a.noise(0.15, { from: 900, vol: 0.15 }); },
   photo: (a) => { a.noise(0.03, { type: 'highpass', from: 3000, vol: 0.35 }); a.noise(0.05, { type: 'highpass', from: 2000, vol: 0.25, at: 0.07 }); },
+  // big crowd cheer: swelling filtered noise + a few "hey!" formants
+  cheer: (a) => {
+    a.noise(2.2, { type: 'bandpass', from: 500, to: 1400, q: 0.6, vol: 0.45, attack: 0.25 });
+    for (let i = 0; i < 6; i++) a.tone(220 + Math.random() * 260, 0.25, { to: 160, type: 'sawtooth', vol: 0.03, lp: 1200, at: 0.1 + Math.random() * 0.9 });
+  },
   box: (a) => [880, 1175, 1568, 2093].forEach((f, i) => a.tone(f, 0.12, { type: 'sine', vol: 0.1, at: i * 0.05 })),
   vote: (a) => { a.tone(660, 0.08, { type: 'triangle', vol: 0.15 }); a.tone(990, 0.1, { type: 'triangle', vol: 0.12, at: 0.06 }); },
 };

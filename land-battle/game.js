@@ -12,6 +12,7 @@
 (() => {
 'use strict';
 const { audio, commentator } = window.LBLAudio;
+const cleanName = (window.LBLShared && window.LBLShared.cleanName) || ((n) => n);
 
 // ───────────────────────────── 1. Config ─────────────────────────────
 const DEFAULT_CONFIG = {
@@ -125,7 +126,7 @@ class SeenSet {
 class Player {
   constructor(user) {
     this.id = user.id;
-    this.name = user.nickname || user.uniqueId || user.id;
+    this.name = cleanName(user.nickname || user.uniqueId || user.id, user.id);
     this.avatar = user.avatar || '';
     this.color = nextColor();
     this.score = 0; this.giftDiamonds = 0; this.roundsWon = 0; this.kills = 0;
@@ -190,7 +191,7 @@ const game = {
     let p = this.players.get(user.id);
     if (p) {
       if (user.avatar) p.avatar = user.avatar;
-      if (user.nickname) p.name = user.nickname;
+      if (user.nickname) p.name = cleanName(user.nickname, p.id);
       p.lastActive = wall();
       return p;
     }

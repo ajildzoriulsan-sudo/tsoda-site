@@ -8,6 +8,7 @@
 (() => {
 'use strict';
 const { audio, commentator } = window.LBLAudio;
+const { cleanName, titleFor, scores } = window.LBLShared;
 
 // ───────────────────────────── Config ─────────────────────────────
 const DEFAULT_CONFIG = {
@@ -52,6 +53,13 @@ const COATS = [
   ['Саарал', '#a9a9a6', '#5d5d5b'], ['Цагаан', '#efe9dc', '#b8b0a0'], ['Шарга', '#d4ae63', '#5a4220'],
   ['Хонгор', '#d89b5d', '#a2683a'], ['Бор', '#6e5c4b', '#3a3027'], ['Хүрэн', '#5c3423', '#2a160d'], ['Халиун', '#c49255', '#2a1d12'],
 ];
+// The stable: the same named horses come back race after race and build a history
+// (races / wins / top-5 / бүүрэг), so viewers get favourites. Coat index → COATS.
+const STABLE = [
+  ['Аянгын Хүрэн', 8], ['Салхин Зээрд', 1], ['Хар Шонхор', 2], ['Мөнгөн Саарал', 3], ['Цагаан Сүүлт', 4], ['Алтан Шарга', 5],
+  ['Галт Хонгор', 6], ['Хангай Бор', 7], ['Хийморь Хээр', 0], ['Од Халиун', 9], ['Цахилгаан Хээр', 0], ['Ууган Зээрд', 1],
+];
+let stableStats = {};   // name → { races, wins, top5, buureg }
 const LANE = [
   { h: 355, s: 85, l: 55 }, { h: 212, s: 88, l: 55 }, { h: 135, s: 70, l: 42 },
   { h: 46, s: 95, l: 52 }, { h: 280, s: 70, l: 58 }, { h: 24, s: 95, l: 55 },
@@ -99,7 +107,7 @@ const race = {
   totalLikes: 0, totalDiamonds: 0, viewerCount: 0,
   feed: [], banners: [], banner: null, particles: [], floaters: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, gallopT: 0,
-  lastResult: null, objects: [], timeScale: 1, nextEventT: 10, shake: 0, flashScreen: 0,
+  lastResult: null, pops: [], board: { week: [], all: [] }, objects: [], timeScale: 1, nextEventT: 10, shake: 0, flashScreen: 0,
 
   get cls() { return CLASSES[this.round]; },
 
@@ -107,12 +115,13 @@ const race = {
     if (!user || !user.id) return null;
     let v = this.viewers.get(user.id);
     if (!v) {
-      v = { id: user.id, name: user.nickname || user.uniqueId || user.id, avatar: user.avatar || '', color: nextColor(),
+      v = { id: user.id, name: cleanName(user.nickname || user.uniqueId || user.id, user.id), avatar: user.avatar || '', color: nextColor(), allPts: 0, raceAdd: 0, likeAcc: 0, popAt: -9,
             score: 0, wins: 0, vote: -1, likeTokens: CFG.likeBurst, likeAt: now(), pending: 0, hinted: -1, commentAt: -99, gifts: 0 };
       this.viewers.set(v.id, v);
+      lookupQueue.add(v.id);
     } else {
       if (user.avatar) v.avatar = user.avatar;
-      if (user.nickname) v.name = user.nickname;
+      if (user.nickname) v.name = cleanName(user.nickname, v.id);
     }
     return v;
   },
@@ -137,6 +146,7 @@ const race = {
     v.vote = i; h.votes.add(v.id);
     this.flash.vote = this.t;
     this.pushFeed(`🗳 ${v.name} → ${i + 1}`, LANE[i]);
+    this.pop(h, v, '🗳');
     audio.play('vote');
     return true;
   },
@@ -182,6 +192,7 @@ const race = {
     if (this.phase === PHASE.RACE) this.takeOff(h, tier, secs);
     else { h.bankTier = Math.max(h.bankTier, tier); h.giftBank += secs; }   // released at the start: the horse flies out of the gate
     this.flash[isRose ? 'rose' : 'gift'] = this.t;
+    this.pop(h, v, `${T.icon} ${name}`);
     this.pushFeed(`${T.icon} ${v.name} → ${h.i + 1} ${h.name} · ${name}`, tier >= 2 ? GOLD : LANE[h.i]);
     if (tier === 0) { audio.play('rose'); return; }
     const big = tier >= 2;
@@ -220,6 +231,13 @@ const race = {
     if (v.vote >= 0) this.boost(this.horses[v.vote], v, 8);
   },
 
+  /** a viewer's own little name tag next to their horse — "I'm on screen!" */
+  pop(h, v, label) {
+    this.pops.push({ h, v, label, t: 0 });
+    const mine = this.pops.filter(p => p.h === h);
+    if (mine.length > 3) this.pops.splice(this.pops.indexOf(mine[0]), 1);
+  },
+
   /** like-equivalent boost from one viewer to a horse */
   boost(h, v, amount) {
     h.e += amount * CFG.likePower;
@@ -250,13 +268,13 @@ const race = {
   },
 
   // ── phases ──
-  setPhase(p) { this.phase = p; this.phaseT = 0; this.lastBeep = 0; },
+  setPhase(p) { this.phase = p; this.phaseT = 0; this.lastBeep = 0; audio.setCrowd({ VOTE: 0.25, READY: 0.45, RACE: 0.5, RESULT: 0.35, FINALE: 0.4 }[p] ?? 0.3); },
 
   newRace(round) {
     this.round = round;
-    const coats = shuffle(COATS.slice()).slice(0, 6);
-    this.horses = coats.map((c, i) => ({
-      i, name: c[0], coat: c[1], dark: c[2],
+    const picks = shuffle(STABLE.slice()).slice(0, 6);
+    this.horses = picks.map(([nm, ci], i) => ({
+      i, name: nm, coatName: COATS[ci][0], coat: COATS[ci][1], dark: COATS[ci][2], stats: stableStats[nm] || { races: 0, wins: 0, top5: 0, buureg: 0 },
       x: 0, v: 0, e: 0, likes: 0, votes: new Set(), contrib: new Map(),
       giftBank: 0, bankTier: 0, alt: 0, flyTier: 0, flyUntil: 0, wasAir: false,
       slowUntil: 0, slowMul: 1, boostUntil: 0, dizzyUntil: 0,
@@ -296,11 +314,22 @@ const race = {
       if (v.vote < 0) continue;
       const place = this.horses[v.vote].place;
       const pts = CFG.pointsWin[place - 1] || 0;
-      v.score += pts + 5;
+      v.score += pts + 5; v.raceAdd += pts + 5;
       if (place === 1) { v.wins++; winners.push(v); v.streak = (v.streak || 0) + 1; } else v.streak = 0;
     }
     const uyachs = this.horses.map(h => this.uyach(h));
-    uyachs.forEach(u => { if (u) u.score += CFG.uyachBonus; });
+    uyachs.forEach(u => { if (u) { u.score += CFG.uyachBonus; u.raceAdd += CFG.uyachBonus; } });
+    // horse history
+    this.finishOrder.forEach((h, k) => {
+      const st = stableStats[h.name] = stableStats[h.name] || { races: 0, wins: 0, top5: 0, buureg: 0 };
+      st.races++; if (k === 0) st.wins++; if (k < 5) st.top5++; if (k === this.finishOrder.length - 1) st.buureg++;
+      h.stats = st;
+    });
+    scores.putDoc('race-stable', stableStats);
+    // weekly / all-time board (kept by the bridge)
+    const entries = [];
+    for (const v of this.viewers.values()) { if (v.raceAdd > 0) entries.push({ id: v.id, name: v.name, avatar: v.avatar, add: v.raceAdd }); v.raceAdd = 0; }
+    scores.add('race', entries).then(r => { for (const [id, pts] of Object.entries(r.all || {})) { const v = this.viewers.get(id); if (v) v.allPts = pts; } refreshBoard(); });
     const first = this.finishOrder[0], last = this.finishOrder[this.finishOrder.length - 1];
     const streak = winners.filter(v => v.streak >= 2).sort((a, b) => b.streak - a.streak)[0] || null;
     this.lastResult = { order: this.finishOrder.slice(), winners, uyachs, streak };
@@ -320,6 +349,11 @@ const race = {
 
     if (P === PHASE.VOTE) {
       const left = CFG.voteSec - this.phaseT;
+      if (this.phaseT > 7 && !this.flags.has('fav')) {
+        this.flags.add('fav');
+        const fav = [...this.horses].sort((a, b) => b.stats.wins - a.stats.wins)[0];
+        if (fav && fav.stats.wins > 0) commentator.say(`${fav.stats.wins} удаа түрүүлсэн ${fav.i + 1} дугаар ${fav.name} энэ удаа ч гарлаа!`, 1, 'r_fav');
+      }
       if (left < 5.5 && !this.flags.has('voteEnd')) { this.flags.add('voteEnd'); commentator.say('Санал авалт дуусах гэж байна! Яараарай!', 2, 'r_vote_end'); }
       if (left <= 3 && left > 0) { const n = Math.ceil(left); if (n !== this.lastBeep) { this.lastBeep = n; audio.play('tick'); } }
       if (left <= 0) {
@@ -357,7 +391,11 @@ const race = {
         const take = Math.min(v.pending, Math.floor(v.likeTokens));
         if (take > 0) {
           v.pending -= take; v.likeTokens -= take;
-          if (P === PHASE.RACE) { this.boost(this.horses[v.vote], v, take); audio.play('like'); }
+          if (P === PHASE.RACE) {
+            this.boost(this.horses[v.vote], v, take); audio.play('like');
+            v.likeAcc += take;
+            if (this.t - v.popAt > 1.4) { v.popAt = this.t; this.pop(this.horses[v.vote], v, `❤ ×${v.likeAcc}`); v.likeAcc = 0; }
+          }
           else this.horses[v.vote].contrib.set(v.id, (this.horses[v.vote].contrib.get(v.id) || 0) + take);
         }
         if (v.pending > CFG.likeBurst * 3) v.pending = CFG.likeBurst * 3;
@@ -375,6 +413,8 @@ const race = {
     if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
     for (const f of this.floaters) { f.t += dt; if (!f.h) f.y -= 70 * dt; }
     this.floaters = this.floaters.filter(f => f.t < (f.big ? 2.2 : 1.1));
+    for (const q of this.pops) q.t += dt;
+    this.pops = this.pops.filter(q => q.t < 1.8);
     for (const q of this.particles) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 1 - 2.5 * dt; q.vy *= 1 - 2.5 * dt; }
     this.particles = this.particles.filter(q => q.t < q.life);
     const maxP = quality < 0.8 ? 250 : 700;
@@ -435,6 +475,7 @@ const race = {
         if (this.finishOrder.length === 1) {
           this.firstFinishT = this.phaseT;
           if (slowMo) { audio.play('photo'); this.flashScreen = 1; }
+          audio.play('cheer');
           this.announce({ icon: '🏆', text: `${h.i + 1} ${h.name.toUpperCase()} ТҮРҮҮЛЛЭЭ!`, sub: 'Бариандаа орлоо!', color: GOLD, dur: 2.5, prio: 3 });
           audio.play('win');
         }
@@ -477,7 +518,7 @@ const race = {
     }
     this.leader = lead;
     if (lead.x > L * 0.82 && !this.flags.has('final')) {
-      this.flags.add('final'); audio.intensity = 2;
+      this.flags.add('final'); audio.intensity = 2; audio.setCrowd(0.9);
       this.announce({ icon: '🏁', text: 'БАРИА ОЙРТОЖ БАЙНА!', sub: 'Сүүлчийн хүч — like!', color: RED, dur: 2, prio: 2, voice: 'Бариа ойртож байна! Сүүлчийн хүчээ гаргаарай!', vprio: 2, vkey: 'r_final' });
     }
     this.gallopT += dt;
@@ -489,6 +530,15 @@ const race = {
 
   topViewers(n) { return [...this.viewers.values()].filter(v => v.score > 0).sort((a, b) => b.score - a.score).slice(0, n); },
 };
+
+const lookupQueue = new Set();
+setInterval(() => {               // fetch all-time points (→ titles) of newly seen viewers
+  if (!lookupQueue.size) return;
+  const ids = [...lookupQueue].slice(0, 200); ids.forEach(id => lookupQueue.delete(id));
+  scores.lookup('race', ids).then(m => { for (const [id, pts] of Object.entries(m)) { const v = race.viewers.get(id); if (v) v.allPts = pts; } });
+}, 3000);
+function refreshBoard() { scores.board('race', 5).then(b => { race.board = b; }); }
+function titleTag(v) { const t = titleFor(v.allPts); return t && t.icon ? `${t.icon} ${t.name}` : ''; }
 
 /** River, mud patches and "?" mystery boxes for one race. Later age classes get more surprises. */
 function makeObjects(round) {
@@ -629,6 +679,17 @@ function drawSteppe() {
       ctx.fillStyle = (r + c) % 2 ? '#111' : '#fff'; ctx.fillRect(fx + c * sq - sq, y, sq, sq);
     }
     text('БАРИА', fx + 52, top - 2, 26, '#ffd166', 'center', 900, 6);
+    // spectators along the finish (they jump when horses are close)
+    const excited = race.phase === PHASE.RACE && race.leader && race.leader.x > L * 0.8;
+    for (let k = 0; k < 34; k++) {
+      const cx = fx - 520 + k * 22 + (k % 2) * 6;
+      if (cx < -10 || cx > W + 10) continue;
+      for (const band of [top + 9, bot - 9]) {
+        const jump = excited ? Math.abs(Math.sin(race.t * 9 + k * 1.7)) * 4 : 0;
+        ctx.fillStyle = `hsl(${(k * 47) % 360},70%,55%)`; ctx.beginPath(); ctx.arc(cx, band - jump, 8, 0, TAU); ctx.fill();   // deel
+        ctx.fillStyle = '#2b1d14'; ctx.beginPath(); ctx.arc(cx, band - jump, 4.5, 0, TAU); ctx.fill();                       // hair from above
+      }
+    }
     for (const fy of [top - 4, bot + 4]) {
       ctx.strokeStyle = '#ddd'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(fx + 16, fy); ctx.lineTo(fx + 16, fy - 40); ctx.stroke();
       ctx.fillStyle = '#ff3d5a'; ctx.beginPath(); ctx.moveTo(fx + 16, fy - 40); ctx.lineTo(fx + 44 + Math.sin(race.t * 6) * 3, fy - 33); ctx.lineTo(fx + 16, fy - 26); ctx.fill();
@@ -674,6 +735,37 @@ function drawObjects(top, bot) {
         text('Юу болох бол?', x, cy - 40, 20, '#ffd166', 'center', 900, 5);
     }
   }
+}
+
+/** Avatars of a horse's top supporters gallop along behind it. */
+function drawConvoy(h, x, gy) {
+  if (!h.contrib.size) return;
+  const top = [...h.contrib.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  top.forEach(([id], k) => {
+    const v = race.viewers.get(id); if (!v) return;
+    const ax = x - 110 - k * 30, ay = gy + 26 + Math.sin(race.t * 10 + k) * 3;
+    if (ax < -20) return;
+    ctx.beginPath(); ctx.arc(ax, ay, 14, 0, TAU); ctx.fillStyle = k === 0 ? '#ffd166' : hsl(LANE[h.i]); ctx.fill();
+    drawAvatar(v, ax, ay, 12);
+  });
+}
+
+function drawPops() {
+  const byHorse = new Map();
+  for (const q of race.pops) {
+    const h = q.h; if (h.screenX == null || h.screenX < -60 || h.screenX > W + 60) continue;
+    const k = byHorse.get(h) || 0; byHorse.set(h, k + 1);
+    const a = clamp(Math.min(q.t / 0.15, (1.8 - q.t) / 0.3), 0, 1);
+    const x = clamp(h.screenX + 40, 120, W - 150), y = h.screenY - 46 - k * 34 - q.t * 8;
+    ctx.globalAlpha = a;
+    const label = fitText(`${q.v.name} ${q.label}`, 230, 18, 800);
+    ctx.font = `800 18px ${FONT}`; const w = ctx.measureText(label).width + 44;
+    roundRect(x - 16, y - 15, w, 30, 15); ctx.fillStyle = 'rgba(10,15,25,.8)'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = hsl(LANE[h.i]); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 12, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill(); drawAvatar(q.v, x, y, 11);
+    text(label, x + 18, y + 1, 18, '#fff', 'left', 800);
+  }
+  ctx.globalAlpha = 1;
 }
 
 /** Top-down horse with a child jockey, facing right. */
@@ -786,6 +878,7 @@ function drawTrack() {
       const sc = race.cls.size * 1.6;
       ctx.fillStyle = `rgba(0,0,0,${0.25 * (1 - h.alt * 0.45)})`;
       ctx.beginPath(); ctx.ellipse(x + 6 + h.alt * 16, gy + 8, 50 * sc * (1 - h.alt * 0.3), 16 * sc * (1 - h.alt * 0.3), 0, 0, TAU); ctx.fill();
+      drawConvoy(h, x, gy);
       drawHorse(h, x, y);
     } else {
       ctx.beginPath(); ctx.arc(W - 30, gy, 16, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill();
@@ -831,9 +924,9 @@ function drawCards() {
     text(String(h.i + 1), cx + 40, cy + ch / 2 + 1, 36, '#fff', 'center', 900);
     // coat swatch + name
     ctx.beginPath(); ctx.arc(cx + 86, cy + 24, 9, 0, TAU); ctx.fillStyle = h.coat; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.stroke();
-    text(h.name, cx + 102, cy + 24, 24, '#fff', 'left', 900);
+    text(fitText(h.name, cw - 160, 22, 900), cx + 102, cy + 24, 22, '#fff', 'left', 900);
     if (ranking) { const pos = ranking.indexOf(h) + 1; text(`#${pos}`, cx + cw - 14, cy + 24, 24, pos === 1 ? '#ffd166' : 'rgba(255,255,255,.75)', 'right', 900); }
-    text(`👥 ${h.votes.size}   ❤ ${fmt(h.likes)}`, cx + 78, cy + 58, 19, 'rgba(255,255,255,.9)', 'left', 700);
+    text(`👥 ${h.votes.size}  ❤ ${fmt(h.likes)}  🏆${h.stats.wins}`, cx + 78, cy + 58, 19, 'rgba(255,255,255,.9)', 'left', 700);
     const u = race.uyach(h);
     if (u && race.phase !== PHASE.VOTE) {
       ctx.beginPath(); ctx.arc(cx + cw - 30, cy + 58, 15, 0, TAU); ctx.fillStyle = '#ffd166'; ctx.fill();
@@ -889,9 +982,11 @@ function drawHeader() {
   else s = '🎉 НААДАМ ӨНДӨРЛӨЛӨӨ';
   text(s, 34, sy, 31, col, 'left', 900, 7);
   text(`❤ ${fmt(race.totalLikes)}  💎 ${fmt(race.totalDiamonds)}`, W - 30, sy, 22, 'rgba(255,255,255,.8)', 'right', 800, 5);
+  const champ = race.board.week && race.board.week[0];
+  if (champ) text(fitText(`👑 7 хоног: ${champ.name}`, 330, 20, 800), W - 30, sy + 44, 20, '#ffd166', 'right', 800, 5);
   // feed (single line under status)
   const f = race.feed[0];
-  if (f && race.t - f.t < 4) text(fitText(f.text, W - 70, 22, 700), 34, sy + 44, 22, hsl(f.color, 15), 'left', 700, 5);
+  if (f && race.t - f.t < 4) text(fitText(f.text, W - 420, 22, 700), 34, sy + 44, 22, hsl(f.color, 15), 'left', 700, 5);
 }
 
 function drawVoteOverlay() {
@@ -907,7 +1002,9 @@ function drawVoteOverlay() {
     ctx.beginPath(); ctx.arc(x, y, 48, 0, TAU); ctx.fillStyle = hsl(LANE[i]); ctx.fill();
     ctx.lineWidth = 5; ctx.strokeStyle = '#fff'; ctx.stroke();
     text(String(i + 1), x, y + 3, 56, '#fff', 'center', 900);
-    text(race.horses[i].name, x, y + 72, 22, '#fff', 'center', 800, 5);
+    const hh = race.horses[i];
+    text(fitText(hh.name, 126, 19, 800), x, y + 70, 19, '#fff', 'center', 800, 5);
+    if (hh.stats.wins) text(`🏆${hh.stats.wins}`, x, y + 94, 17, '#ffd166', 'center', 800, 4);
   }
   text(String(Math.ceil(left)), W / 2, cy + 190, 90, left < 5 ? '#ff4d6d' : '#ffd166', 'center', 900, 14);
 }
@@ -932,7 +1029,8 @@ function drawResult() {
   text(String(first.i + 1), W / 2 - 170, top + 120, 46, '#fff', 'center', 900);
   text(`${first.name.toUpperCase()}`, W / 2 + 20, top + 104, 56, '#fff', 'center', 900, 10);
   const u1 = uyachs[first.i];
-  text(u1 ? `Уяач: ${u1.name}` : 'Уяачгүй', W / 2 + 20, top + 150, 24, '#25f4ee', 'center', 800, 5);
+  text(u1 ? `Уяач: ${u1.name}${titleTag(u1) ? ' · ' + titleTag(u1) : ''}` : 'Уяачгүй', W / 2 + 20, top + 150, 24, '#25f4ee', 'center', 800, 5);
+  if (first.stats.wins > 1) text(`${first.stats.wins} дахь түрүү!`, W / 2 + 270, top + 104, 22, '#ffd166', 'center', 900, 5);
   // айргийн тав (top 5)
   text('АЙРГИЙН ТАВ', W / 2, top + 200, 26, 'rgba(255,255,255,.75)', 'center', 900);
   order.slice(0, 5).forEach((h, k) => {
@@ -941,7 +1039,7 @@ function drawResult() {
     text(['🥇', '🥈', '🥉', '4', '5'][k], 186, ry, 26, '#fff', 'center', 900);
     ctx.beginPath(); ctx.arc(236, ry, 16, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill();
     text(String(h.i + 1), 236, ry + 1, 20, '#fff', 'center', 900);
-    text(h.name, 264, ry, 24, '#fff', 'left', 800);
+    text(fitText(h.name, 420, 24, 800), 264, ry, 24, '#fff', 'left', 800);
     text(`👥 ${h.votes.size}`, W - 170, ry, 22, 'rgba(255,255,255,.85)', 'right', 800);
   });
   const last = order[order.length - 1];
@@ -959,17 +1057,22 @@ function drawFinale() {
   const top = TRACK.top - 26, hgt = TRACK_BOTTOM - TRACK.top + 52;
   ctx.fillStyle = 'rgba(5,10,20,.9)'; ctx.fillRect(0, top, W, hgt);
   text('🎉 НААДАМ ӨНДӨРЛӨЛӨӨ', W / 2, top + 52, 46, '#ffd166', 'center', 900, 10);
-  text('ШИЛДЭГ УЯАЧИД', W / 2, top + 104, 28, '#25f4ee', 'center', 900, 6);
-  const list = race.topViewers(8);
-  if (!list.length) text('Энэ удаа санал өгсөн хүн алга', W / 2, top + 220, 28, '#fff', 'center', 700);
-  list.forEach((v, k) => {
-    const ry = top + 156 + k * 54;
-    roundRect(120, ry - 23, W - 240, 46, 16); ctx.fillStyle = k === 0 ? 'rgba(255,209,102,.3)' : 'rgba(255,255,255,.07)'; ctx.fill();
-    text(['🥇', '🥈', '🥉'][k] || String(k + 1), 160, ry, 26, '#fff', 'center', 900);
-    ctx.beginPath(); ctx.arc(214, ry, 19, 0, TAU); ctx.fillStyle = '#ffd166'; ctx.fill(); drawAvatar(v, 214, ry, 17);
-    text(fitText(v.name, 420, 24, 800), 246, ry, 24, '#fff', 'left', 800);
-    text(`${fmt(v.score)} · ${v.wins}🏆`, W - 150, ry, 22, '#ffd166', 'right', 900);
-  });
+  text('ЭНЭ НААДМЫН ШИЛДЭГ УЯАЧИД', W / 2, top + 100, 26, '#25f4ee', 'center', 900, 6);
+  const row = (v, k, ry, pts, gold) => {
+    roundRect(100, ry - 22, W - 200, 44, 16); ctx.fillStyle = gold ? 'rgba(255,209,102,.3)' : 'rgba(255,255,255,.07)'; ctx.fill();
+    text(['🥇', '🥈', '🥉'][k] || String(k + 1), 138, ry, 24, '#fff', 'center', 900);
+    ctx.beginPath(); ctx.arc(188, ry, 18, 0, TAU); ctx.fillStyle = '#ffd166'; ctx.fill(); drawAvatar(v, 188, ry, 16);
+    text(fitText(v.name, 330, 22, 800), 216, ry - 1, 22, '#fff', 'left', 800);
+    const tt = titleFor(v.allPts ?? v.pts); if (tt && tt.icon) text(tt.icon, 560, ry, 20, '#fff', 'center', 400);
+    text(fmt(pts), W - 130, ry, 22, '#ffd166', 'right', 900);
+  };
+  const list = race.topViewers(5);
+  if (!list.length) text('Энэ удаа санал өгсөн хүн алга', W / 2, top + 200, 26, '#fff', 'center', 700);
+  list.forEach((v, k) => row(v, k, top + 148 + k * 50, v.score, k === 0));
+  text('👑 ЭНЭ 7 ХОНОГИЙН АВАРГА', W / 2, top + 418, 26, '#ffd166', 'center', 900, 6);
+  const wk = (race.board.week || []).slice(0, 3);
+  if (!wk.length) text('—', W / 2, top + 470, 24, '#fff', 'center', 700);
+  wk.forEach((r, k) => row({ name: r.name, avatar: r.avatar, color: { h: 45, s: 80, l: 55 }, pts: r.pts }, k, top + 466 + k * 50, r.pts, k === 0));
   if (Math.random() < 0.6) race.particles.push({ x: rand(0, W), y: top, vx: rand(-50, 50), vy: rand(200, 420), life: 2.2, t: 0, r: rand(5, 10), color: nextColor(), confetti: true });
 }
 
@@ -1002,6 +1105,11 @@ function render() {
   ctx.drawImage(bgCanvas, 0, 0, W, H);
   ctx.save(); ctx.beginPath(); ctx.rect(0, TRACK.top - 26, W, TRACK_BOTTOM - TRACK.top + 52); ctx.clip();
   if (race.shake > 0) ctx.translate(rand(-1, 1) * race.shake * 20, rand(-1, 1) * race.shake * 20);
+  const zoom = 1 + clamp((1 - race.timeScale) / 0.65, 0, 1) * 0.3;      // photo finish: zoom on the leader
+  if (zoom > 1.001 && race.leader && race.leader.screenX != null) {
+    const fxp = clamp(race.leader.screenX, 200, W - 200), fyp = (TRACK.top + TRACK_BOTTOM) / 2;
+    ctx.translate(fxp, fyp); ctx.scale(zoom, zoom); ctx.translate(-fxp, -fyp);
+  }
   drawTrack();
   for (const q of race.particles) {
     const a = 1 - q.t / q.life; ctx.globalAlpha = a * (q.dust ? 0.6 : 1); ctx.fillStyle = hsl(q.color, q.dust ? 0 : 10);
@@ -1014,6 +1122,7 @@ function render() {
     else { ctx.globalAlpha = clamp(1.1 - f.t, 0, 1); text(f.text, f.x, f.y, 26, '#ff4d8d', 'center', 900); }
   }
   ctx.globalAlpha = 1;
+  drawPops();
   drawVoteOverlay(); drawReadyOverlay(); drawResult(); drawFinale();
   ctx.restore();
   drawMinimap();
@@ -1073,13 +1182,14 @@ const RACE_LINES = [
   ['r_final',    'Бариа ойртох',        'Бариа ойртож байна! Сүүлчийн хүчээ гаргаарай!'],
   ['r_win',      'Түрүүлэх',            'Түрүү морь бариандаа орлоо!'],
   ['r_buureg',   'Бүүрэг',              'Бүүрэг ч гэсэн баатар!'],
+  ['r_fav',      'Аварга морь гарах',   'Аварга морь энэ удаа ч гарлаа!'],
   ['r_champion', 'Наадам өндөрлөх',     'Наадам өндөрлөлөө! Баяр хүргэе!'],
 ];
 
 // ───────────────────────────── Bridge client ─────────────────────────────
 const bridge = {
   ws: null, url: '', lastSeq: 0, boot: '', retry: 0, timer: null, wanted: false,
-  connect(url) { this.url = url; this.wanted = true; this.retry = 0; commentator.ttsBase = httpBase(url); this.open(); },
+  connect(url) { this.url = url; this.wanted = true; this.retry = 0; commentator.ttsBase = httpBase(url); scores.base = commentator.ttsBase; this.open(); },
   disconnect() { this.wanted = false; clearTimeout(this.timer); if (this.ws) this.ws.close(); setStatus('Салгасан (симуляц горим)', 'off'); },
   open() {
     clearTimeout(this.timer);
@@ -1252,6 +1362,7 @@ function initPanel() {
   showSafe = params.get('safe') === '1';
   if (params.get('ws')) $('wsUrl').value = params.get('ws') === 'auto' ? `ws://${location.host}` : params.get('ws');
   commentator.ttsBase = httpBase($('wsUrl').value) || (location.protocol.startsWith('http') ? location.origin : '');
+  scores.base = commentator.ttsBase;
   if (params.get('ws') || params.get('connect') === '1') bridge.connect($('wsUrl').value);
   if (params.get('demo') === '1') { autoSim = true; addBots(14); }
   if (params.get('voice')) audio.settings.voiceMode = params.get('voice');
@@ -1342,10 +1453,17 @@ function frame(ts) {
 }
 
 loadSession();
+function loadStable() {
+  scores.getDoc('race-stable').then(d => {
+    if (d && typeof d === 'object') stableStats = d;
+    for (const h of race.horses) if (stableStats[h.name]) h.stats = stableStats[h.name];
+  });
+}
 race.newRace(0);
 initPanel();
 fitCanvas();
 setInterval(saveSession, 5000);
+loadStable(); refreshBoard();
 requestAnimationFrame(frame);
 window.RACE = { race, bridge, sim, audio, commentator, CFG: () => CFG };
 })();

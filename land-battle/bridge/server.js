@@ -282,12 +282,84 @@ function handleVoices(req, res, sub) {
   res.writeHead(400, cors); res.end();
 }
 
+// ───────── Persistent store: weekly / all-time viewer scores + small documents ─────────
+const DATA_DIR = path.join(__dirname, 'data');
+const STORE_FILE = path.join(DATA_DIR, 'store.json');
+let store = { scores: {}, docs: {} };
+try { store = { scores: {}, docs: {}, ...JSON.parse(fs.readFileSync(STORE_FILE, 'utf8')) }; } catch {}
+let saveTimer = null;
+function saveStore() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFile(STORE_FILE + '.tmp', JSON.stringify(store), err => { if (!err) fs.rename(STORE_FILE + '.tmp', STORE_FILE, () => {}); });
+  }, 1500);
+}
+function isoWeek(d = new Date()) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return `${t.getUTCFullYear()}-W${String(Math.ceil(((t - y0) / 86400000 + 1) / 7)).padStart(2, '0')}`;
+}
+const topOf = (tbl, n) => Object.entries(tbl || {}).map(([id, r]) => ({ id, ...r })).sort((a, b) => b.pts - a.pts).slice(0, n);
+const isLocal = (req) => /^(::1|127\.|::ffff:127\.)/.test(req.socket.remoteAddress || '');
+function readJson(req, max, cb) {
+  const chunks = []; let size = 0;
+  req.on('data', c => { size += c.length; if (size > max) req.destroy(); else chunks.push(c); });
+  req.on('end', () => { try { cb(JSON.parse(Buffer.concat(chunks).toString('utf8'))); } catch { cb(null); } });
+}
+function sendJson(res, code, obj) { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); }
+const safeKey = (s) => /^[a-z0-9_-]{1,40}$/i.test(String(s || ''));
+
+function handleApi(req, res, route, query) {
+  if (route === 'scores' && req.method === 'POST') {
+    if (!isLocal(req)) return sendJson(res, 403, {});
+    return readJson(req, 2e6, body => {
+      if (!body || !safeKey(body.game) || !Array.isArray(body.entries)) return sendJson(res, 400, {});
+      const g = store.scores[body.game] = store.scores[body.game] || { all: {}, weeks: {} };
+      const wk = isoWeek(); const week = g.weeks[wk] = g.weeks[wk] || {};
+      const out = { all: {}, week: {} };
+      for (const e of body.entries.slice(0, 2000)) {
+        const id = String(e.id || '').slice(0, 80), add = Number(e.add) || 0;
+        if (!id || add <= 0 || add > 1e6) continue;
+        for (const [tbl, key] of [[g.all, 'all'], [week, 'week']]) {
+          const r = tbl[id] = tbl[id] || { name: '', avatar: '', pts: 0 };
+          r.name = String(e.name || r.name).slice(0, 60); if (e.avatar) r.avatar = String(e.avatar).slice(0, 500); r.pts += add;
+          out[key][id] = r.pts;
+        }
+      }
+      saveStore(); sendJson(res, 200, out);
+    });
+  }
+  if (route === 'board') {
+    const g = store.scores[query.get('game')] || { all: {}, weeks: {} };
+    const n = Math.min(50, Number(query.get('n')) || 10);
+    return sendJson(res, 200, { weekKey: isoWeek(), week: topOf(g.weeks[isoWeek()], n), all: topOf(g.all, n) });
+  }
+  if (route === 'lookup') {
+    const g = store.scores[query.get('game')] || { all: {} }, out = {};
+    for (const id of String(query.get('ids') || '').split(',').slice(0, 500)) if (g.all[id]) out[id] = g.all[id].pts;
+    return sendJson(res, 200, out);
+  }
+  if (route.startsWith('doc/')) {
+    const name = route.slice(4);
+    if (!safeKey(name)) return sendJson(res, 400, {});
+    if (req.method === 'GET') return sendJson(res, 200, store.docs[name] ?? null);
+    if (req.method === 'POST') {
+      if (!isLocal(req)) return sendJson(res, 403, {});
+      return readJson(req, 5e5, body => { store.docs[name] = body; saveStore(); sendJson(res, 200, { ok: true }); });
+    }
+  }
+  sendJson(res, 404, {});
+}
+
 // ───────── HTTP (serves the game folder) + WebSocket ─────────
 const ROOT = path.resolve(__dirname, '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => {
   const [rawPath, qs] = (req.url || '/').split('?');
   if (rawPath === '/tts') return handleTts(req, res, new URLSearchParams(qs || ''));
+  if (rawPath.startsWith('/api/')) return handleApi(req, res, decodeURIComponent(rawPath.slice(5)), new URLSearchParams(qs || ''));
   if (rawPath === '/voices' || rawPath.startsWith('/voices/')) return handleVoices(req, res, decodeURIComponent(rawPath.slice(8)));
   const url = decodeURIComponent(rawPath);
   const file = path.resolve(ROOT, '.' + (url === '/' ? '/index.html' : url));
