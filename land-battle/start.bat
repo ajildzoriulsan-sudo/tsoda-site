@@ -41,19 +41,38 @@ if not defined TTUSER echo   TikTok нэр : - тохируулаагүй -
 if defined AZURE_SPEECH_KEY echo   AI хоолой  : Azure монгол хоолой
 if not defined AZURE_SPEECH_KEY echo   AI хоолой  : браузер TTS
 echo.
-echo   [1]  TikTok LIVE-тэй холбох   - эхлээд TikTok дээр LIVE эхлүүлнэ үү
-echo   [2]  Туршилт - TikTok-гүй, хуурамч үзэгчид
-echo   [3]  TikTok нэр солих
-echo   [4]  Azure монгол хоолойн түлхүүр оруулах
-echo   [5]  Гарах
+echo   Эхлээд TikTok дээр LIVE эхлүүлнэ үү.
 echo.
-choice /c 12345 /n /m "  Сонголт [1-5]: "
-if errorlevel 5 goto end
-if errorlevel 4 goto setazure
-if errorlevel 3 goto setuser
-if errorlevel 2 goto mock
-if errorlevel 1 goto live
+echo   [1]  МОРИН УРАЛДААН   - TikTok LIVE
+echo   [2]  ГАЗРЫН ТУЛААН    - TikTok LIVE
+echo   [3]  Туршилт: морин уралдаан - TikTok-гүй
+echo   [4]  Туршилт: газрын тулаан  - TikTok-гүй
+echo   [5]  TikTok нэр солих
+echo   [6]  Azure монгол хоолойн түлхүүр оруулах
+echo   [7]  Гарах
+echo.
+choice /c 1234567 /n /m "  Сонголт [1-7]: "
+if errorlevel 7 goto end
+if errorlevel 6 goto setazure
+if errorlevel 5 goto setuser
+if errorlevel 4 goto mock_battle
+if errorlevel 3 goto mock_race
+if errorlevel 2 goto live_battle
+if errorlevel 1 goto live_race
 goto menu
+
+:live_race
+set "PAGE=race.html"
+goto live
+:live_battle
+set "PAGE="
+goto live
+:mock_race
+set "PAGE=race.html"
+goto mock
+:mock_battle
+set "PAGE="
+goto mock
 
 :live
 if not defined TTUSER goto setuser_then_live
@@ -62,7 +81,7 @@ echo.
 echo   @%TTUSER% LIVE-д холбогдож байна...
 echo   Браузер автоматаар нээгдэнэ. Энэ цонхыг LIVE дуустал бүү хаа!
 echo.
-node server.js --user=%TTUSER% --open
+node server.js --user=%TTUSER% --open --page=%PAGE%
 echo.
 echo   Bridge зогслоо.
 pause
@@ -73,14 +92,14 @@ cls
 echo.
 echo   Туршилтын горим: хуурамч Follow / Like / Gift үүсгэнэ.
 echo.
-node server.js --mock --open
+node server.js --mock --open --page=%PAGE%
 echo.
 pause
 goto menu
 
 :setuser_then_live
 call :askuser
-if defined TTUSER goto live
+if defined TTUSER goto live_race
 goto menu
 
 :setuser

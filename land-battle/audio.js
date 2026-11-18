@@ -92,7 +92,7 @@ const audio = {
   /** Play a named effect. `k` (0..1) scales intensity where it applies. */
   play(name, k = 1) {
     if (!this.running) return;
-    const gap = { bump: 0.07, like: 0.11, join: 0.15, tick: 0.2 }[name] || 0.04;
+    const gap = { bump: 0.07, like: 0.11, join: 0.15, tick: 0.2, vote: 0.08, gallop: 0.18 }[name] || 0.04;
     const now = this.ctx.currentTime;
     if (now - (this.last[name] || 0) < gap) return;
     this.last[name] = now;
@@ -148,6 +148,9 @@ const SFX = {
     a.noise(1.2, { type: 'highpass', from: 5000, vol: 0.08, at: 0.8 });
   },
   tick: (a) => a.tone(1500, 0.03, { type: 'square', vol: 0.05 }),
+  // three-beat gallop of hooves on the steppe
+  gallop: (a) => [0, 0.07, 0.13].forEach((t, i) => { a.tone(95 - i * 8, 0.07, { to: 55, type: 'triangle', vol: 0.22, at: t }); a.noise(0.05, { from: 700, vol: 0.07, at: t }); }),
+  vote: (a) => { a.tone(660, 0.08, { type: 'triangle', vol: 0.15 }); a.tone(990, 0.1, { type: 'triangle', vol: 0.12, at: 0.06 }); },
 };
 
 // ───────────────────────────── Recorded voice lines ─────────────────────────────

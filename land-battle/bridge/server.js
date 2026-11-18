@@ -194,6 +194,7 @@ function createMockSource() {
     else if (r < 0.45) { const c = likeAgg.get('mock_' + n) || { user: user(n), count: 0 }; c.count += 1 + (Math.random() * 5 | 0); likeAgg.set('mock_' + n, c); }
     else if (r < 0.5) publish({ type: 'gift', user: user(n), gift: { name: 'Rose', diamonds: 1, count: 1 } });
     else if (r < 0.505) publish({ type: 'gift', user: user(n), gift: { name: 'Lion', diamonds: 299, count: 1 } });
+    else if (r < 0.53) publish({ type: 'comment', user: user(n), text: String(1 + Math.floor(Math.random() * 6)) }); // horse-race votes
     viewers = 100 + (Math.random() * 20 | 0);
   }, 150);
   setInterval(() => broadcast({ type: 'viewers', count: viewers }), 3000);
@@ -332,11 +333,13 @@ function openBrowser(url) {
 server.listen(PORT, () => {
   const voice = AZ_KEY ? '&voice=azure' : '';
   console.log('');
-  console.log(`  Тоглоом + самбар : http://localhost:${PORT}/?ws=auto${voice}`);
-  console.log(`  OBS / LIVE Studio: http://localhost:${PORT}/?ws=auto&overlay=1${voice}   (1080 x 1920)`);
+  const page = String(args.page || '').replace(/[^a-z0-9._-]/gi, '');   // e.g. race.html
+  const base = `http://localhost:${PORT}/${page}`;
+  console.log(`  Тоглоом + самбар : ${base}?ws=auto${voice}`);
+  console.log(`  OBS / LIVE Studio: ${base}?ws=auto&overlay=1${voice}   (1080 x 1920)`);
   console.log(`  AI монгол хоолой : ${AZ_KEY ? 'Azure ' + AZ_VOICE : 'браузер TTS (Azure түлхүүр тохируулаагүй)'}`);
   console.log('  Зогсоох: Ctrl+C');
   console.log('');
-  if (args.open) openBrowser(`http://localhost:${PORT}/?ws=auto${voice}`);
+  if (args.open) openBrowser(`${base}?ws=auto${voice}`);
   if (MOCK) createMockSource(); else createTikTokSource();
 });
