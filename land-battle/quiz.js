@@ -238,6 +238,7 @@ const quiz = {
     }
     if (this.phase !== PHASE.QUESTION || v.out) return;
     let a = parseAlloc(s, this.removed); if (!a) return;
+    if (!this.spamOk(v)) return;
     if (v.herd == null) {
       if (this.qIndex >= CFG.joinUntil) { if (!v.lateHint) { v.lateHint = true; this.pushFeed(`⏳ ${v.name}: дараагийн тоглолтод нэгдээрэй`, CYAN); } return; }
       v.herd = CFG.startHerd; this.pushFeed(TH.join(v), GREEN);
@@ -254,9 +255,13 @@ const quiz = {
   },
   /** MONEY: everyone is one team; each comment is a vote "how to split the team's money" */
   teamComment(v, s) {
-    if (/^(мөнгө|үлдэгдэл|\?)/.test(s)) { this.note(`💰 Багийн мөнгө: ${TH.amount(this.team)} (${Math.round(this.team / UNIT)} боодол)`, CYAN); return; }
+    if (/^(мөнгө|үлдэгдэл|\?)/.test(s)) {
+      if (this.t - (v.infoAt ?? -99) < 15) return;                  // anti-spam: info once per 15 s per person
+      v.infoAt = this.t; this.note(`💰 Багийн мөнгө: ${TH.amount(this.team)} (${Math.round(this.team / UNIT)} боодол)`, CYAN); return;
+    }
     if (this.phase !== PHASE.QUESTION || this.team <= 0) return;
     const a = parseAlloc(s, this.removed); if (!a) return;
+    if (!this.spamOk(v)) return;
     const had = this.alloc.has(v.id);
     this.alloc.set(v.id, a);
     const parts = a.map((p, i) => [p, i]).filter(x => x[0] > 0).map(([p, i]) => `${i + 1}: ${Math.round(p)}%`);
@@ -265,6 +270,18 @@ const quiz = {
     if (!had) { this.recent.unshift({ v, t: this.t }); if (this.recent.length > 12) this.recent.length = 12; }
     this.flash.answer = this.t;
     audio.play('vote');
+  },
+  /** Anti-spam for votes: one person = one vote (a new comment replaces the old one), at most one
+   *  comment every 2 s, and at most 3 changes per question. */
+  spamOk(v) {
+    if (v.voteQ !== this.qIndex + '/' + this.game) { v.voteQ = this.qIndex + '/' + this.game; v.changes = 0; v.voteAt = -99; v.capNoted = false; }
+    if (this.t - v.voteAt < 2) return false;
+    if (this.alloc.has(v.id)) {
+      if (v.changes >= 3) { if (!v.capNoted) { v.capNoted = true; this.note(`⛔ ${v.name}: саналаа 3 удаа сольсон — энэ асуултад дахин солихгүй`, RED); } return false; }
+      v.changes++;
+    }
+    v.voteAt = this.t;
+    return true;
   },
   /** the team's money in whole bundles: average of everyone's split, at most 3 chests, one always empty */
   teamBundles() {
