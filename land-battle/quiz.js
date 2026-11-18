@@ -71,6 +71,7 @@ function saveConfig() { try { localStorage.setItem(CFG_KEY, JSON.stringify(CFG))
 const W = 1080, H = 1920, TAU = Math.PI * 2;
 const SAFE = { top: 140, bottom: 1300 };
 const AREA = { top: 440, bottom: 1290 };
+if (HERD) AREA.top = 350;               // herd/money: no how-to strip, everything moves up
 const OPT = [{ h: 355, s: 80, l: 55 }, { h: 212, s: 85, l: 55 }, { h: 44, s: 92, l: 50 }, { h: 140, s: 65, l: 42 }];
 const GOLD = { h: 45, s: 100, l: 60 }, RED = { h: 350, s: 95, l: 62 }, CYAN = { h: 178, s: 90, l: 55 }, GREEN = { h: 140, s: 85, l: 55 };
 const PINK = { h: 330, s: 90, l: 62 };
@@ -596,7 +597,7 @@ function drawHeader() {
     HERD ? ['goal', '🐑', 'ХАНДИВ', 'Нэр тань үлдэнэ', GREEN] : ['gift', '🎁', 'GIFT', '+5с · 50/50', GOLD],
   ];
   const cw = 252, chh = 88, cy = 234, gap = 8;
-  cards.forEach(([key, ic, title, desc, col], i) => {
+  if (!HERD) cards.forEach(([key, ic, title, desc, col], i) => {
     const cx = 30 + i * (cw + gap);
     const now = key === 'answer' && (quiz.phase === PHASE.QUESTION || quiz.phase === PHASE.TOPIC);
     const lit = Math.max(clamp(1 - (quiz.t - (quiz.flash[key] ?? -9)) / 0.7, 0, 1), now ? 0.4 + 0.4 * pulse(6) : 0);
@@ -606,7 +607,7 @@ function drawHeader() {
     text(title, cx + 76, cy + 29, 25, hsl(col, 10), 'left', 900);
     text(fitText(desc, cw - 84, 21, 700), cx + 76, cy + 62, 21, '#fff', 'left', 700);
   });
-  const sy = 362, P = quiz.phase; let s, col = '#25f4ee';
+  const sy = HERD ? 262 : 362, P = quiz.phase; let s, col = '#25f4ee';
   if (P === PHASE.TOPIC) { s = `🗂 Сэдэв сонго · ${Math.ceil(Math.max(0, CFG.topicSec - quiz.phaseT))}с · ${quiz.topicVoters.size} санал`; col = '#ffd166'; }
   else if (P === PHASE.INTRO) s = `❓ Асуулт ${quiz.qIndex + 1} удахгүй…`;
   else if (HERD && P === PHASE.QUESTION) {
@@ -816,7 +817,7 @@ function drawCashTop(x, y, ang, alpha, burn) {
 
 /** MONEY mode, seen from directly above: four chests in an arc, answer label above each, money lying on the lids. */
 function drawStations(q, rev, sh, pl, total) {
-  const xs = [148, 404, 676, 932], ys = [1000, 935, 935, 1000], LW = 200, LH = 158;
+  const dy = AREA.top - 440, xs = [148, 404, 676, 932], ys = [1000 + dy, 935 + dy, 935 + dy, 1000 + dy], LW = 200, LH = 158;
   const done = !rev || quiz.revealDone, suspense = rev && !quiz.revealDone;
   q.opts.forEach((o, i) => {
     const cx0 = xs[i], cy0 = ys[i], col = OPT[i];
