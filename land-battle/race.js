@@ -65,12 +65,13 @@ const LANE = [
   { h: 46, s: 95, l: 52 }, { h: 280, s: 70, l: 58 }, { h: 24, s: 95, l: 55 },
 ];
 const GOLD = { h: 45, s: 100, l: 60 }, RED = { h: 350, s: 95, l: 62 }, CYAN = { h: 178, s: 90, l: 55 }, GREEN = { h: 140, s: 85, l: 55 };
-// Gift tiers: the horse leaves the ground. Bigger gift → higher, longer, faster flight.
+// Gift tiers: a real Naadam-style burst of speed — the jockey sings "гийнгоо", the horse
+// gallops harder, kicks up more dust; big gifts add a golden glow. (Stays on the ground.)
 const FLY = [
-  { word: 'ҮСЭРЛЭЭ',      icon: '🌹', secs: 1.4, alt: 0.55, bonus: 0.7, wings: null },        // Rose
-  { word: 'ДЭВЛЭЛЭЭ',     icon: '🎁', secs: 3.5, alt: 0.8,  bonus: 1.0, wings: '#ffffff' },   // < 100 💎
-  { word: 'НИСЛЭЭ',       icon: '💎', secs: 6,   alt: 1.0,  bonus: 1.6, wings: '#ffd166' },   // 100–999 💎
-  { word: 'ХИЙМОРЬ БОЛЛОО', icon: '🌌', secs: 9, alt: 1.2,  bonus: 2.2, wings: '#ffd166', rainbow: true }, // 1000+ 💎
+  { word: 'ГИЙНГООЛЛОО',       icon: '🌹', secs: 1.6, alt: 0, bonus: 0.6, wings: null },  // Rose
+  { word: 'ДАВХИЛАА',          icon: '🎁', secs: 3.5, alt: 0, bonus: 0.9, wings: null },  // < 100 💎
+  { word: 'ХИЙМОРЬ СЭРГЭЛЭЭ',  icon: '💎', secs: 6,   alt: 0, bonus: 1.4, wings: null },  // 100–999 💎
+  { word: 'АЯНГА ШИГ ДАВХИЛАА', icon: '⚡', secs: 9,  alt: 0, bonus: 1.9, wings: null },  // 1000+ 💎
 ];
 const PHASE = { VOTE: 'VOTE', READY: 'READY', RACE: 'RACE', RESULT: 'RESULT', FINALE: 'FINALE' };
 
@@ -196,10 +197,10 @@ const race = {
     this.pushFeed(`${T.icon} ${v.name} → ${h.i + 1} ${h.name} · ${name}`, tier >= 2 ? GOLD : LANE[h.i]);
     if (tier === 0) { audio.play('rose'); return; }
     const big = tier >= 2;
-    this.announce({ avatar: v, text: `${h.i + 1} ${h.name.toUpperCase()} ${T.word}!`, sub: `${v.name} · ${name}${count > 1 ? ' ×' + count : ''}`,
+    this.announce({ avatar: v, text: `${T.word}!`, sub: `${h.i + 1} ${h.name} · ${v.name} · ${name}${count > 1 ? ' ×' + count : ''}`,
       color: big ? GOLD : GREEN, dur: big ? 3 : 2.2, prio: big ? 3 : 2,
-      voice: tier === 3 ? `Хийморь! ${v.name}-ийн ачаар ${h.name} морь алтан хүлэг болж нислээ!`
-        : pick([`${v.name}-ийн ачаар ${h.i + 1} дугаар ${h.name} нисч байна!`, `Хараач! ${h.name} морь нислээ! Баярлалаа ${v.name}!`]),
+      voice: tier === 3 ? `Аянга шиг давхилаа! ${v.name}-ийн ачаар ${h.name} хийморь нь сэргэлээ!`
+        : pick([`${v.name}-ийн ачаар ${h.i + 1} дугаар ${h.name} давхиж байна!`, `Хараач! ${h.name} морь давхилаа! Баярлалаа ${v.name}!`]),
       vprio: big ? 3 : 2, vkey: tier === 3 ? 'r_kheemori' : 'r_fly' });
     audio.play(big ? 'big' : 'gift');
     if (tier === 3) { this.flashScreen = 0.8; this.shake = 0.5; }
@@ -215,7 +216,7 @@ const race = {
   mystery(h) {
     const r = Math.random(); let label, col;
     if (r < 0.4) { h.boostUntil = this.t + 3; label = '⚡ ХУРД!'; col = GOLD; audio.play('gift'); }
-    else if (r < 0.6) { this.takeOff(h, 1, 2.5); label = '🪽 НИСЛЭЭ!'; col = CYAN; }
+    else if (r < 0.6) { this.takeOff(h, 1, 2.5); label = '💨 ДАВХИЛАА!'; col = CYAN; }
     else if (r < 0.85) { h.slowUntil = this.t + 2; h.slowMul = 0.45; h.dizzyUntil = this.t + 2; label = '🌀 ТОЛГОЙ ЭРГЭЛЭЭ'; col = RED; audio.play('stumble'); }
     else { label = '🎁 ДЭМЖИГЧДЭД +20'; col = GREEN; for (const id of h.votes) { const v = this.viewers.get(id); if (v) v.score += 20; } audio.play('rose'); }
     audio.play('box');
@@ -444,18 +445,18 @@ const race = {
         if (h.screenX != null) this.burst(h.screenX, h.screenY + 10, { h: 35, s: 30, l: 62 }, 16, 0.9);
       }
       if (h.finished) { h.v *= 1 - 1.5 * dt; h.x += h.v * dt; h.stride += h.v * dt / 34; continue; }
-      const air = h.alt > 0.3;
+      const sprint = this.t < h.flyUntil;
       // terrain: river and mud slow down horses on the ground; flying horses pass over
       let terrain = 1;
       for (const o of this.objects) {
         if (o.type === 'river') {
-          if (Math.abs(h.x - o.x) < o.w / 2 && !air) {
-            terrain = Math.min(terrain, 0.4);
+          if (Math.abs(h.x - o.x) < o.w / 2) {
+            terrain = Math.min(terrain, sprint ? 0.75 : 0.4);
             if (Math.random() < 0.3 && h.screenX != null) this.particles.push({ x: h.screenX + rand(-20, 30), y: h.screenY + rand(-14, 14), vx: rand(-60, 60), vy: rand(-90, -20), life: 0.5, t: 0, r: rand(3, 6), color: { h: 200, s: 80, l: 80 } });
             if (Math.random() < dt * 3) audio.play('splash');
           }
         } else if (o.type === 'mud') {
-          if (o.lane === h.i && Math.abs(h.x - o.x) < o.w / 2 && !air) terrain = Math.min(terrain, 0.55);
+          if (o.lane === h.i && Math.abs(h.x - o.x) < o.w / 2) terrain = Math.min(terrain, sprint ? 0.8 : 0.55);
         } else if (o.type === 'box' && !o.taken && o.lane === h.i && h.x >= o.x) { o.taken = true; this.mystery(h); }
       }
       const wobble = 1 + 0.07 * Math.sin(this.t * h.f1 + h.p1) + 0.04 * Math.sin(this.t * h.f2 + h.p2);
@@ -469,14 +470,14 @@ const race = {
       h.v += ((run + extra) * ramp - h.v) * Math.min(1, dt * 2.2);
       h.x += h.v * dt;
       h.e *= Math.exp(-dt / 2.2);
-      h.stride += h.v * dt / 34 * (air ? 0.4 : 1);
+      h.stride += h.v * dt / 34;
       if (h.x >= L) {
         h.finished = true; h.finishT = this.phaseT; this.finishOrder.push(h);
         if (this.finishOrder.length === 1) {
           this.firstFinishT = this.phaseT;
           if (slowMo) { audio.play('photo'); this.flashScreen = 1; }
           audio.play('cheer');
-          this.announce({ icon: '🏆', text: `${h.i + 1} ${h.name.toUpperCase()} ТҮРҮҮЛЛЭЭ!`, sub: 'Бариандаа орлоо!', color: GOLD, dur: 2.5, prio: 3 });
+          this.announce({ icon: '🏆', text: 'ТҮРҮҮЛЛЭЭ!', sub: `${h.i + 1} ${h.name} бариандаа орлоо!`, color: GOLD, dur: 2.5, prio: 3 });
           audio.play('win');
         }
       }
@@ -486,8 +487,8 @@ const race = {
     const river = this.objects.find(o => o.type === 'river');
     if (river && lead.x > river.x - 1500 && lead.x < river.x && !this.flags.has('river')) {
       this.flags.add('river');
-      this.announce({ icon: '🌊', text: 'УРД ГОЛ БАЙНА!', sub: 'Нисэж буй морь л дээгүүр нь гатална — 🎁', color: CYAN, dur: 2.6, prio: 3,
-        voice: 'Урд гол байна! Нисэх морь л дээгүүр нь гатална!', vprio: 2, vkey: 'r_river' });
+      this.announce({ icon: '🌊', text: 'УРД ГОЛ БАЙНА!', sub: 'Давхиж буй морь голыг хурдан гатална — 🎁', color: CYAN, dur: 2.6, prio: 3,
+        voice: 'Урд гол байна! Давхиж буй морь голыг хурдан гатална!', vprio: 2, vkey: 'r_river' });
     }
     // random race events keep everyone guessing
     if (this.phaseT > this.nextEventT && lead.x < L * 0.9) {
@@ -498,15 +499,15 @@ const race = {
         if (h) {
           h.slowUntil = this.t + 1.4; h.slowMul = 0.3; h.dizzyUntil = this.t + 1.4;
           audio.play('stumble'); this.shake = 0.25;
-          this.announce({ icon: '😱', text: `${h.i + 1} ${h.name.toUpperCase()} БҮДЭРЛЭЭ!`, sub: 'Юу болох бол?!', color: RED, dur: 2, prio: 2,
+          this.announce({ icon: '😱', text: 'БҮДЭРЛЭЭ!', sub: `${h.i + 1} ${h.name} · Юу болох бол?!`, color: RED, dur: 2, prio: 2,
             voice: pick([`Өө! ${h.i + 1} дугаар ${h.name} бүдэрлээ!`, `${h.name} морь бүдэрлээ! Одоо юу болох бол?`]), vprio: 2, vkey: 'r_stumble' });
         }
       } else {
         const h = order[order.length - 1];
         if (h) {
           h.boostUntil = this.t + 3.5;
-          this.announce({ icon: '🔥', text: `${h.i + 1} ${h.name.toUpperCase()}: ХИЙМОРЬ СЭРГЭЛЭЭ!`, sub: 'Сүүлийн морь гэнэт давхилаа', color: GOLD, dur: 2.2, prio: 2,
-            voice: `Хийморь сэргэлээ! ${h.i + 1} дугаар ${h.name} гүйцэж байна!`, vprio: 2, vkey: 'r_comeback' });
+          this.announce({ icon: '🔥', text: 'ГҮЙЦЭЖ ИРЛЭЭ!', sub: `${h.i + 1} ${h.name} · сүүлийн морь гэнэт хурдаллаа`, color: GOLD, dur: 2.2, prio: 2,
+            voice: `Гайхалтай! ${h.i + 1} дугаар ${h.name} гүйцэж байна!`, vprio: 2, vkey: 'r_comeback' });
           audio.play('whoosh');
         }
       }
@@ -838,7 +839,7 @@ function drawHorse(h, x, y) {
   ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
   text(String(h.i + 1), tx, ty + 1, 21, '#fff', 'center', 900);
   // speed lines while boosted
-  if (race.t < h.boostUntil) {
+  if (race.t < h.boostUntil || race.t < h.flyUntil) {
     ctx.strokeStyle = `hsla(45,100%,60%,${0.5 + 0.4 * pulse(12)})`; ctx.lineWidth = 4;
     for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(x - 95 - k * 18, y - 16 + k * 16); ctx.lineTo(x - 150 - k * 18 - Math.random() * 30, y - 16 + k * 16); ctx.stroke(); }
   }
@@ -861,10 +862,9 @@ function drawTrack() {
         h.dustAcc += h.v / 900;
         while (h.dustAcc > 1) { h.dustAcc--; race.particles.push({ x: x - 80, y: gy + rand(-10, 10), vx: rand(-90, -30), vy: rand(-20, 20), life: rand(0.4, 0.8), t: 0, r: rand(4, 9), color: { h: 35, s: 30, l: 62 }, dust: true }); }
       }
-      if (h.alt > 0.2) {                        // sparkle trail in flight
-        const T = FLY[h.flyTier];
-        for (let k = 0; k < 2; k++) race.particles.push({ x: x - 60 + rand(-10, 10), y: y + rand(-14, 14), vx: rand(-160, -60), vy: rand(-20, 20), life: rand(0.4, 0.9), t: 0, r: rand(3, 6),
-          color: T.rainbow ? { h: (race.t * 200 + k * 60) % 360, s: 95, l: 65 } : T.wings === '#ffffff' ? { h: 200, s: 30, l: 92 } : GOLD });
+      if (race.t < h.flyUntil) {                // gift sprint: thick dust cloud, gold sparks for big gifts
+        for (let k = 0; k < 2; k++) race.particles.push({ x: x - 70 + rand(-10, 10), y: gy + rand(-16, 16), vx: rand(-200, -80), vy: rand(-30, 30), life: rand(0.5, 0.9), t: 0, r: rand(5, 10), color: { h: 35, s: 30, l: 62 }, dust: true });
+        if (h.flyTier >= 2) race.particles.push({ x: x - 50 + rand(-10, 10), y: gy + rand(-12, 12), vx: rand(-160, -60), vy: rand(-20, 20), life: rand(0.4, 0.8), t: 0, r: rand(2.5, 5), color: GOLD });
       }
     }
     if (x < -70) {
@@ -879,6 +879,11 @@ function drawTrack() {
       ctx.fillStyle = `rgba(0,0,0,${0.25 * (1 - h.alt * 0.45)})`;
       ctx.beginPath(); ctx.ellipse(x + 6 + h.alt * 16, gy + 8, 50 * sc * (1 - h.alt * 0.3), 16 * sc * (1 - h.alt * 0.3), 0, 0, TAU); ctx.fill();
       drawConvoy(h, x, gy);
+      if (race.t < h.flyUntil && h.flyTier >= 2) {      // golden glow of a horse whose хийморь rose
+        const gl = ctx.createRadialGradient(x, gy, 10, x, gy, 110);
+        gl.addColorStop(0, `rgba(255,209,102,${0.45 + 0.2 * pulse(10)})`); gl.addColorStop(1, 'rgba(255,209,102,0)');
+        ctx.fillStyle = gl; ctx.fillRect(x - 110, gy - 110, 220, 220);
+      }
       drawHorse(h, x, y);
     } else {
       ctx.beginPath(); ctx.arc(W - 30, gy, 16, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill();
@@ -953,8 +958,8 @@ function drawHeader() {
   const cards = [
     ['vote', '💬', '1–6 БИЧ', 'Морь сонгох', CYAN],
     ['like', '❤', 'LIKE', 'Хурдлуулах', RED],
-    ['rose', '🌹', 'ROSE', 'Морь үсрэх', { h: 330, s: 90, l: 62 }],
-    ['gift', '🎁', 'GIFT', 'Морь НИСЭХ 🪽', GOLD],
+    ['rose', '🌹', 'ROSE', 'Гийнгоо', { h: 330, s: 90, l: 62 }],
+    ['gift', '🎁', 'GIFT', 'Хүчтэй давхилт', GOLD],
   ];
   const cw = 252, chh = 88, cy = 234, gap = 8;
   cards.forEach(([key, ic, title, desc, col], i) => {
@@ -1172,12 +1177,12 @@ const RACE_LINES = [
   ['r_giingoo',  'Гийнгоо',             'Гийн гоо! Морьд гараанд бэлэн боллоо!'],
   ['r_go',       'Гараанаас гарах',     'Морьд гараанаас мордлоо! Like дарж морио хурдлуулаарай!'],
   ['r_lead',     'Тэргүүлэгч солигдох', 'Тэргүүлэгч солигдлоо!'],
-  ['r_fly',      'Морь нисэх (gift)',   'Хараач! Морь нислээ!'],
-  ['r_kheemori', 'Хийморь (том gift)',  'Хийморь! Алтан хүлэг болж нислээ!'],
-  ['r_river',    'Гол анхааруулга',     'Урд гол байна! Нисэх морь л дээгүүр нь гатална!'],
+  ['r_fly',      'Морь давхих (gift)',  'Хараач! Морь давхилаа!'],
+  ['r_kheemori', 'Хийморь (том gift)',  'Хийморь сэргэлээ! Аянга шиг давхиж байна!'],
+  ['r_river',    'Гол анхааруулга',     'Урд гол байна! Давхиж буй морь голыг хурдан гатална!'],
   ['r_box',      'Нууц хайрцаг',        'Нууц хайрцаг! Юу болох бол?'],
   ['r_stumble',  'Бүдрэх',              'Өө! Морь бүдэрлээ! Одоо юу болох бол?'],
-  ['r_comeback', 'Хийморь сэргэх',      'Хийморь сэргэлээ! Сүүлийн морь гүйцэж байна!'],
+  ['r_comeback', 'Гүйцэж ирэх',         'Гайхалтай! Сүүлийн морь гүйцэж байна!'],
   ['r_photo',    'Фото финиш',          'Фото финиш! Хэн нь түрүүлэх вэ?!'],
   ['r_final',    'Бариа ойртох',        'Бариа ойртож байна! Сүүлчийн хүчээ гаргаарай!'],
   ['r_win',      'Түрүүлэх',            'Түрүү морь бариандаа орлоо!'],

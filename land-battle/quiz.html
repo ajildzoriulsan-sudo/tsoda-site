@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Асуулт хариулт — TikTok LIVE</title>
+<meta name="description" content="Quiz game for TikTok LIVE">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div id="stageWrap">
+    <canvas id="stage" width="1080" height="1920"></canvas>
+  </div>
+
+  <aside id="panel">
+    <header>
+      <h1>АСУУЛТ ХАРИУЛТ</h1>
+      <p class="hint">Туршилтын самбар · <kbd>H</kbd> нуух · OBS/LIVE Studio-д <code>?overlay=1</code></p>
+    </header>
+
+    <section>
+      <h2>TikTok LIVE холболт</h2>
+      <div class="row">
+        <input id="wsUrl" value="ws://localhost:8787" spellcheck="false">
+        <button id="wsConnect">Холбох</button>
+      </div>
+      <div id="wsStatus" class="status off">Холбогдоогүй (симуляц горим)</div>
+    </section>
+
+    <section>
+      <h2>Үйлдэл дуурайх</h2>
+      <div class="row">
+        <input id="simUser" placeholder="хэрэглэгчийн нэр" value="bataa_99" spellcheck="false">
+        <button id="simRandom" title="Санамсаргүй нэр">🎲</button>
+      </div>
+      <p class="hint">Хариулах (comment-д дугаар бичих):</p>
+      <div class="grid six four">
+        <button data-vote="1">1</button><button data-vote="2">2</button><button data-vote="3">3</button><button data-vote="4">4</button>
+      </div>
+      <div class="grid">
+        <button data-act="like1">❤️ Like</button>
+        <button data-act="like15">❤️ Like ×15</button>
+        <button data-act="rose">🌹 Rose (1💎)</button>
+        <button data-act="small">💝 Heart Me (5💎)</button>
+        <button data-act="big">🦁 Lion (299💎)</button>
+        <button data-act="huge">🌌 Galaxy (1000💎)</button>
+        <button data-act="follow">➕ Follow</button>
+      </div>
+      <div class="row">
+        <input id="simComment" placeholder="Comment..." spellcheck="false">
+        <button id="simSend">Илгээх</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Дуу ба AI тайлбарлагч</h2>
+      <button id="audioOn" class="wide">🔇 Дуу асаах</button>
+      <div class="balance">
+        <label for="sfxVol">Эффект</label><input id="sfxVol" type="range" min="0" max="1" step="0.05">
+        <label for="musicOn">Хөгжим</label><span class="inline"><input id="musicOn" type="checkbox"><input id="musicVol" type="range" min="0" max="1" step="0.05"></span>
+        <label for="voiceMode">Тайлбарлагч</label>
+        <select id="voiceMode">
+          <option value="browser">Браузер TTS</option>
+          <option value="azure">Azure монгол хоолой</option>
+          <option value="off">Унтраах</option>
+        </select>
+        <label for="voiceChatty">Ярих давтамж</label>
+        <select id="voiceChatty">
+          <option value="2">Их</option>
+          <option value="1">Дунд</option>
+          <option value="0">Зөвхөн чухал</option>
+        </select>
+        <label for="voiceName">Хоолой</label><select id="voiceName"></select>
+        <label for="voiceVol">Хоолойн чанга</label><input id="voiceVol" type="range" min="0" max="1" step="0.05">
+        <label for="voiceRate">Хурд</label><input id="voiceRate" type="range" min="0.7" max="1.5" step="0.05">
+      </div>
+      <div class="row"><button id="voiceTest">🗣 Хоолой турших</button></div>
+      <div id="voiceInfo" class="status off"></div>
+    </section>
+
+    <section>
+      <h2>🎙 Өөрийн хоолой</h2>
+      <p class="hint">Өгүүлбэр бүрийг өөрийн дуугаар бичвэл AI-ийн оронд таны хоолой сонсогдоно. Нэг өгүүлбэрт 2–3 хувилбар бичвэл илүү амьд болно. Бичээгүй өгүүлбэрт дээрх тайлбарлагч (TTS) ажиллана.</p>
+      <label class="check"><input id="useRecorded" type="checkbox"> Бичсэн хоолойг ашиглах</label>
+      <div id="voiceList" class="voice-list"></div>
+    </section>
+
+    <section>
+      <h2>Тест</h2>
+      <div class="grid">
+        <button id="addBots">🤖 +10 бот хариулт</button>
+        <button id="autoSim" class="toggle">▶ Авто симуляц</button>
+        <button id="nextPhase">⏭ Дараагийн шат</button>
+        <button id="resetAll">♻ Эхнээс нь</button>
+        <button id="safeZone" class="toggle">📱 TikTok бүс харах</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Баланс тохиргоо</h2>
+      <div id="balance" class="balance"></div>
+      <div class="row">
+        <button id="balSave">Хадгалах</button>
+        <button id="balReset">Анхны утга</button>
+      </div>
+    </section>
+  </aside>
+</div>
+<script src="badwords.js"></script>
+<script src="shared.js"></script>
+<script src="audio.js"></script>
+<script src="questions.js"></script>
+<script src="quiz.js"></script>
+</body>
+</html>
