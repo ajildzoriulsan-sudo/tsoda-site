@@ -70,11 +70,17 @@ function nextColor() { hueSeed = (hueSeed + 137.508) % 360; return { h: Math.rou
 
 // question pool: shuffled, no repeats until all were used
 let pool = [];
-function nextQuestion() {
+function nextQuestion(cat) {
   const all = (window.QUIZ_QUESTIONS || []).filter(q => q && q.q && Array.isArray(q.a) && q.a.length >= 2);
   if (!all.length) return { c: 'Ерөнхий', q: 'questions.js файлд асуулт алга байна', opts: ['—', '—', '—', '—'], correct: 0 };
   if (!pool.length) pool = shuffle(all.slice());
-  const src = pool.shift();
+  let src;
+  if (cat) {
+    const k = pool.findIndex(q => q.c === cat);
+    if (k >= 0) src = pool.splice(k, 1)[0];
+    else { const same = all.filter(q => q.c === cat); if (same.length) src = pick(same); }
+  }
+  if (!src) src = pool.shift();
   const opts = shuffle(src.a.slice(0, 4));
   return { c: src.c || 'Ерөнхий', q: src.q, opts, correct: opts.indexOf(src.a[0]) };
 }
@@ -87,6 +93,7 @@ const quiz = {
   totalLikes: 0, totalDiamonds: 0, viewerCount: 0,
   feed: [], banners: [], banner: null, particles: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, board: { week: [], all: [] },
+  bank: { likes: 0, secs: 0, removes: 0 }, sponsor: null, chooser: null, nextCat: null,
 
   get duration() { return CFG.answerSec + this.extra; },
 
@@ -95,7 +102,7 @@ const quiz = {
     let v = this.viewers.get(user.id);
     if (!v) {
       v = { id: user.id, name: cleanName(user.nickname || user.uniqueId || user.id, user.id), avatar: user.avatar || '', color: nextColor(),
-            score: 0, streak: 0, correct: 0, mult: 1, nextMult: 1, allPts: 0, likeQ: 0 };
+            score: 0, streak: 0, correct: 0, allPts: 0, likeQ: 0 };
       this.viewers.set(v.id, v); lookupQueue.add(v.id);
     } else {
       if (user.avatar) v.avatar = user.avatar;
@@ -116,8 +123,18 @@ const quiz = {
   },
 
   onComment(user, text) {
-    const v = this.viewer(user); if (!v || this.phase !== PHASE.QUESTION || this.answers.has(v.id)) return;
+    const v = this.viewer(user); if (!v) return;
     const s = text.trim().toLowerCase();
+    if (this.chooser === v && this.phase !== PHASE.QUESTION) {      // big gifter picks the next topic
+      const map = [['түүх', 'Түүх'], ['газар', 'Газарзүй'], ['соёл', 'Соёл'], ['шинжлэх', 'Шинжлэх ухаан'], ['ухаан', 'Шинжлэх ухаан'], ['ерөнхий', 'Ерөнхий'], ['спорт', 'Спорт']];
+      const hit = map.find(([k]) => s.includes(k));
+      if (hit) {
+        this.nextCat = hit[1]; this.chooser = null;
+        this.announce({ avatar: v, text: `Дараагийн сэдэв: ${hit[1]}`, sub: `${v.name} сонголоо`, color: GOLD, dur: 2.4, prio: 3, voice: `${v.name} дараагийн сэдвийг ${hit[1]} гэж сонголоо!`, vprio: 2 });
+      }
+      return;
+    }
+    if (this.phase !== PHASE.QUESTION || this.answers.has(v.id)) return;
     let m = s.match(/^([1-4])(?!\d)/), opt = -1;
     if (m) opt = +m[1] - 1;
     else if ((m = s.match(/^([abcdабвг])(?![a-zа-яөү])/))) opt = 'abcdабвг'.indexOf(m[1]) % 4;
@@ -135,32 +152,51 @@ const quiz = {
     if (this.phase !== PHASE.QUESTION) return;
     const take = Math.max(0, Math.min(count, 60 - v.likeQ));   // anti-spam: one viewer counts ≤60 per question
     v.likeQ += take; this.likesQ += take;
-    if (!this.likeRemoved && this.likesQ >= CFG.likeGoal) {
-      this.likeRemoved = true;
-      if (this.removeWrong()) this.announce({ icon: '❤', text: 'ХАМТЫН ХҮЧ!', sub: 'Нэг буруу хариулт арилав', color: RED, dur: 2.4, prio: 3,
-        voice: 'Хамтын хүчээр нэг буруу хариулт арилав!', vprio: 2, vkey: 'q_fifty' });
-    }
+    this.checkLikeGoal();
   },
 
+  checkLikeGoal() {
+    if (this.likeRemoved || this.likesQ < CFG.likeGoal) return;
+    this.likeRemoved = true;
+    if (this.removeWrong()) this.announce({ icon: '❤', text: 'ХАМТЫН ХҮЧ!', sub: 'Нэг буруу хариулт арилав', color: RED, dur: 2.4, prio: 3,
+      voice: 'Хамтын хүчээр нэг буруу хариулт арилав!', vprio: 2, vkey: 'q_fifty' });
+  },
+  addTime(secs) { const add = Math.min(secs, 15 - this.extra); if (add > 0) this.extra += add; return add; },
+
+  /** Gifts never add points (points come only from answering right). They help the whole room. */
   onGift(user, gift) {
     const v = this.viewer(user); if (!v) return;
     const count = Math.max(1, gift.count | 0), dia = Math.max(1, gift.diamonds | 0), value = dia * count;
     this.totalDiamonds += value;
     const name = gift.name || 'Gift';
-    const tier = /rose/i.test(name) || dia === 1 ? 0 : dia < 100 ? 1 : 2;
-    const mult = [2, 3, 5][tier];
-    const inQ = this.phase === PHASE.QUESTION && !this.answers.has(v.id) || this.phase === PHASE.INTRO;
-    if (inQ) v.mult = Math.max(v.mult, mult); else v.nextMult = Math.max(v.nextMult, mult);
-    let sub = `Таны оноо ×${mult}${inQ ? '' : ' (дараагийн асуултад)'}`;
-    if (tier >= 1 && this.phase === PHASE.QUESTION && this.extra < 15) { this.extra += 5; sub += ' · бүгдэд +5 сек'; }
-    if (tier === 2 && this.phase === PHASE.QUESTION) { if (this.removeWrong()) sub += ' · буруу хариулт арилав'; }
-    this.flash[tier === 0 ? 'rose' : 'gift'] = this.t;
-    this.pushFeed(`${tier === 0 ? '🌹' : '🎁'} ${v.name} · ${name} → ×${mult}`, tier === 2 ? GOLD : PINK);
-    if (tier === 0) { audio.play('rose'); return; }
-    this.announce({ avatar: v, text: `${v.name} — ${name}!`, sub, color: tier === 2 ? GOLD : GREEN, dur: tier === 2 ? 3 : 2.2, prio: tier === 2 ? 3 : 2,
-      voice: tier === 2 ? `Баярлалаа ${v.name}! Нэг буруу хариулт арилж, бүгдэд таван секунд нэмэгдлээ!` : `Баярлалаа ${v.name}! Бүгдэд таван секунд нэмэгдлээ!`,
-      vprio: 2, vkey: 'q_time' });
-    audio.play(tier === 2 ? 'big' : 'gift');
+    const tier = /rose/i.test(name) || dia === 1 ? 0 : dia < 100 ? 1 : dia < 1000 ? 2 : 3;
+    const live = this.phase === PHASE.QUESTION;
+    this.sponsor = v;
+    if (tier === 0) {                                   // 🌹 adds to the shared like goal
+      const add = 30 * count;
+      if (live) { this.likesQ += add; this.checkLikeGoal(); } else this.bank.likes += add;
+      this.flash.rose = this.t;
+      this.pushFeed(`🌹 ${v.name}: хамтын тусламж +${add}`, PINK);
+      audio.play('rose');
+      return;
+    }
+    let sub, voice;
+    if (tier === 1) {
+      const secs = 5 * Math.min(3, count);
+      if (live) this.addTime(secs); else this.bank.secs += secs;
+      sub = `Бүгдэд +${secs} секунд${live ? '' : ' (дараагийн асуултад)'}`;
+      voice = `Баярлалаа ${v.name}! Бүгдэд ${secs === 5 ? 'таван' : secs} секунд нэмэгдлээ!`;
+    } else {
+      if (live) this.removeWrong(); else this.bank.removes++;
+      sub = `Бүгдэд нэг буруу хариулт арилав${live ? '' : ' (дараагийн асуултад)'}`;
+      voice = `Баярлалаа ${v.name}! Бүгдэд нэг буруу хариулт арилав!`;
+    }
+    if (tier === 3) { this.chooser = v; sub += ' · дараагийн сэдвийг сонгоно'; voice += ' Мөн дараагийн сэдвийг сонгох эрх авлаа!'; }
+    this.flash.gift = this.t;
+    this.pushFeed(`🎁 ${v.name} · ${name}`, tier >= 2 ? GOLD : GREEN);
+    this.announce({ avatar: v, text: `Баярлалаа, ${v.name}!`, sub, color: tier >= 2 ? GOLD : GREEN, dur: tier >= 2 ? 3 : 2.4, prio: tier >= 2 ? 3 : 2,
+      voice, vprio: 2, vkey: tier === 1 ? 'q_time' : 'q_help' });
+    audio.play(tier >= 2 ? 'big' : 'gift');
   },
 
   /** remove one wrong answer that is still on the board; returns true if one was removed */
@@ -193,10 +229,11 @@ const quiz = {
 
   // ── flow ──
   startIntro() {
-    this.cur = nextQuestion();
+    if (this.chooser && !this.nextCat) this.chooser = null;     // didn't choose in time → random topic
+    this.cur = nextQuestion(this.nextCat); this.nextCat = null; this.sponsor = null;
     this.answers.clear(); this.counts = [0, 0, 0, 0]; this.removed.clear(); this.likesQ = 0; this.likeRemoved = false; this.extra = 0;
     this.recent = []; this.fastest = null; this.correctList = []; this.flags.clear();
-    for (const v of this.viewers.values()) { v.mult = v.nextMult; v.nextMult = 1; v.likeQ = 0; }
+    for (const v of this.viewers.values()) v.likeQ = 0;
     this.setPhase(PHASE.INTRO);
     audio.intensity = 0;
     commentator.say('Шинэ асуулт!', 2, 'q_new');
@@ -204,6 +241,11 @@ const quiz = {
   },
   startQuestion() {
     this.setPhase(PHASE.QUESTION);
+    const b = this.bank;                                 // help sent between questions
+    if (b.secs) this.addTime(b.secs);
+    for (let k = 0; k < b.removes; k++) this.removeWrong();
+    if (b.likes) { this.likesQ += b.likes; this.checkLikeGoal(); }
+    this.bank = { likes: 0, secs: 0, removes: 0 };
     audio.intensity = 1;
     if (CFG.readQuestion) {
       let s = `Асуулт ${this.qIndex + 1}. ${this.cur.q}`;
@@ -220,7 +262,7 @@ const quiz = {
       if (!a) continue;
       if (a.opt === q.correct) {
         const frac = clamp(1 - a.t / dur, 0, 1);
-        const pts = Math.round((CFG.minPoints + (CFG.maxPoints - CFG.minPoints) * frac) * v.mult + CFG.streakBonus * v.streak);
+        const pts = Math.round((CFG.minPoints + (CFG.maxPoints - CFG.minPoints) * frac)  + CFG.streakBonus * v.streak);
         v.score += pts; v.streak++; v.correct++; v.lastPts = pts;
         this.correctList.push(v);
         entries.push({ id: v.id, name: v.name, avatar: v.avatar, add: pts });
@@ -240,6 +282,9 @@ const quiz = {
     const streaker = this.correctList.filter(v => v.streak >= 3).sort((a, b) => b.streak - a.streak)[0];
     if (streaker) setTimeout(() => commentator.say(`${streaker.name} ${streaker.streak} удаа дараалан зөв хариуллаа!`, 2), 300);
     this.burst(540, 760, GREEN, 40, 1.3);
+    if (this.chooser && this.qIndex + 1 < CFG.questionsPerGame)
+      this.announce({ avatar: this.chooser, text: 'СЭДЭВ СОНГО!', sub: `${this.chooser.name}: Түүх · Газарзүй · Соёл · Шинжлэх · Ерөнхий · Спорт`, color: GOLD, dur: 4, prio: 2,
+        voice: `${this.chooser.name}, дараагийн асуултын сэдвийг коммент хэсэгт бичээрэй!`, vprio: 2, vkey: 'q_cat' });
   },
   afterReveal() {
     this.qIndex++;
@@ -359,8 +404,8 @@ function drawHeader() {
   const cards = [
     ['answer', '💬', '1–4 БИЧ', 'Хариулах', CYAN],
     ['like', '❤', 'LIKE', 'Хамтдаа 50/50', RED],
-    ['rose', '🌹', 'ROSE', 'Оноо ×2', PINK],
-    ['gift', '🎁', 'GIFT', '+5с · оноо ×3', GOLD],
+    ['rose', '🌹', 'ROSE', 'Хамтын тусламж', PINK],
+    ['gift', '🎁', 'GIFT', '+5с · 50/50', GOLD],
   ];
   const cw = 252, chh = 88, cy = 234, gap = 8;
   cards.forEach(([key, ic, title, desc, col], i) => {
@@ -401,6 +446,10 @@ function drawQuestion() {
   ctx.font = `900 22px ${FONT}`; const cwid = ctx.measureText(chip).width + 32;
   roundRect(56, y0 - 20, cwid, 40, 20); ctx.fillStyle = '#7b3fe4'; ctx.fill();
   text(chip, 56 + cwid / 2, y0 + 1, 22, '#fff', 'center', 900);
+  if (quiz.sponsor) {
+    const sp = `🎁 Ивээн тэтгэсэн: ${quiz.sponsor.name}`;
+    text(fitText(sp, 420, 20, 800), W - 54, y0 + hq - 20, 20, '#7b3fe4', 'right', 800);
+  }
   if (P === PHASE.INTRO) {
     const k = 1 + 0.06 * pulse(8);
     text(`АСУУЛТ ${quiz.qIndex + 1}`, W / 2, y0 + hq / 2, 76 * k, '#24104a', 'center', 900);
@@ -571,6 +620,8 @@ const QUIZ_LINES = [
   ['q_5s',       '5 секунд үлдэх',       'Таван секунд үлдлээ!'],
   ['q_fifty',    'Хамтын 50/50',         'Хамтын хүчээр нэг буруу хариулт арилав!'],
   ['q_time',     'Gift: цаг нэмэх',      'Баярлалаа! Бүгдэд таван секунд нэмэгдлээ!'],
+  ['q_help',     'Gift: буруу арилгах',  'Баярлалаа! Бүгдэд нэг буруу хариулт арилав!'],
+  ['q_cat',      'Сэдэв сонгох',         'Дараагийн асуултын сэдвийг коммент хэсэгт бичээрэй!'],
   ['q_board',    'Онооны самбар',        'Онооны самбарыг харцгаая!'],
   ['q_champion', 'Тэмцээн өндөрлөх',     'Тэмцээн өндөрлөлөө! Баяр хүргэе!'],
 ];
