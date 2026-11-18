@@ -860,6 +860,9 @@ function drawBallLabel(p) {
 function drawHeader() {
   // title
   const ty = 186;
+  const goalOn = !!(window.LBLGoal && LBLGoal.active);
+  if (goalOn) LBLGoal.draw(ctx, 30, 146, W - 60, 78);   // donation goal replaces the title row
+  if (!goalOn) {
   text('ГАЗРЫН ТУЛААН', 34, ty, 54, '#fff', 'left', 900, 10);
   ctx.font = `900 54px ${FONT}`;
   const tw = ctx.measureText('ГАЗРЫН ТУЛААН').width;
@@ -870,6 +873,7 @@ function drawHeader() {
   text(`РАУНД ${game.round}`, px + 85, ty + 1, 26, '#fff', 'center', 900);
   // stats (right)
   text(`💎 ${fmt(game.totalDiamonds)}   ❤ ${fmt(game.totalLikes)}`, W - 30, ty, 24, 'rgba(255,255,255,.85)', 'right', 800, 5);
+  }
 
   // HOW TO PLAY strip — always visible, the action that just happened lights up
   const cards = [
@@ -902,6 +906,7 @@ function drawHeader() {
     color = left < 10 ? (pulse(10) > 0.5 ? '#ff4d6d' : '#fff') : '#ffd166';
     if (game.stateT < CFG.lateJoinSec) status += `   ➕ Нэгдэх ${Math.ceil(CFG.lateJoinSec - game.stateT)}с`;
   } else status = `👑 Раунд ${game.round} дууслаа`;
+  if (goalOn) status = `Р${game.round} · ` + status;
   text(status, 34, sy, 32, color, 'left', 900, 7);
 }
 
@@ -1120,6 +1125,7 @@ const bridge = {
         if (typeof msg.viewers === 'number') game.viewers = msg.viewers;
         return;
       }
+      if (msg.type === 'goal') { if (window.LBLGoal) LBLGoal.update(msg.goal); return; }
       if (msg.type === 'events') { for (const ev of msg.events) this.accept(ev); return; }
       this.accept(msg);
     };
@@ -1150,6 +1156,11 @@ function initPanel() {
   if (params.get('ws')) $('wsUrl').value = params.get('ws') === 'auto' ? `ws://${location.host}` : params.get('ws');
   commentator.ttsBase = httpBase($('wsUrl').value) || (location.protocol.startsWith('http') ? location.origin : '');
   if (params.get('ws') || params.get('connect') === '1') bridge.connect($('wsUrl').value);
+  if (window.LBLGoal) {
+    LBLGoal.start(commentator.ttsBase);
+    LBLGoal.on(e => { if (e.type === 'milestone') game.announce({ icon: '🐑', text: `ЗОРИЛГЫН ${e.pct}% БИЕЛЛЭЭ!`, sub: e.goal.config.title, color: { h: 45, s: 100, l: 60 }, dur: 3.2, prio: 3,
+      voice: e.pct >= 100 ? `Зорилго биеллээ! ${e.goal.config.title} Бүгдэд баярлалаа!` : `Зорилгын ${e.pct} хувь биеллээ! Баярлалаа!`, vprio: 3, vkey: e.pct >= 100 ? 'goal_done' : 'goal_step' }); });
+  }
   if (params.get('demo') === '1') { autoSim = true; addBots(14); }
   if (params.get('voice')) audio.settings.voiceMode = params.get('voice');
 

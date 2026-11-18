@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Хандивын хана — МАЛЧИН</title>
+<meta name="robots" content="noindex">
+<style>
+  :root { --bg: #0d0820; --card: #1a1236; --line: #33275e; --text: #f3efff; --muted: #a59bcf; --gold: #ffd166; --green: #6dffb0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 16px/1.4 "Segoe UI", system-ui, Roboto, sans-serif; }
+  body.transparent { background: transparent; }
+  #app { display: flex; min-height: 100vh; }
+  #wall { flex: 1; display: flex; justify-content: center; padding: 24px 16px; }
+  .stage { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 18px; }
+  h1 { margin: 0; font-size: clamp(26px, 6vw, 40px); line-height: 1.1; color: var(--gold); text-shadow: 0 3px 0 rgba(0,0,0,.4); }
+  .sub { color: var(--muted); font-size: 17px; margin-top: 6px; }
+  .bar { position: relative; height: 54px; border-radius: 27px; background: rgba(255,255,255,.1); overflow: hidden; border: 2px solid rgba(255,209,102,.5); }
+  .fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 27px; background: linear-gradient(90deg, #ff8a3d, #ffd166, #6dffb0); transition: width 1.2s ease; }
+  .fill::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); width: 30%; animation: shine 2.2s linear infinite; }
+  @keyframes shine { from { transform: translateX(-120%); } to { transform: translateX(420%); } }
+  .bar span { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 900; font-size: 20px; color: #1a0f33; text-shadow: 0 1px 0 rgba(255,255,255,.4); }
+  .nums { display: flex; justify-content: space-between; font-weight: 800; }
+  .nums b { color: var(--gold); font-size: 22px; }
+  .bump { animation: bump .8s ease; }
+  @keyframes bump { 30% { transform: scale(1.04); filter: brightness(1.3); } }
+  h2 { margin: 6px 0 0; font-size: 18px; letter-spacing: .06em; color: var(--green); text-transform: uppercase; }
+  .donors { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .donor { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px; min-width: 0; }
+  .donor.top { border-color: var(--gold); background: linear-gradient(135deg, rgba(255,209,102,.18), var(--card)); }
+  .av { width: 38px; height: 38px; border-radius: 50%; flex: none; background: #7b3fe4 center/cover; display: grid; place-items: center; font-weight: 900; }
+  .who { min-width: 0; }
+  .who .n { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .who .d { font-size: 13px; color: var(--muted); }
+  .new { animation: pop .9s ease; }
+  @keyframes pop { 0% { transform: scale(.6); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } }
+  .empty { color: var(--muted); }
+  .recent { font-size: 15px; color: var(--muted); }
+  .recent b { color: var(--text); }
+  #panel { width: 340px; flex: none; background: #150f2c; border-left: 1px solid var(--line); padding: 18px; }
+  #panel h3 { margin: 0 0 12px; color: var(--gold); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=number] { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }
+  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  button, a.btn { background: #2a1f52; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; text-decoration: none; }
+  button.primary { background: #ff2d55; border-color: #ff2d55; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 14px; }
+  .status { font-size: 13px; margin-top: 8px; color: var(--green); min-height: 1em; }
+  body.overlay #panel { display: none; }
+  @media (max-width: 760px) { #app { flex-direction: column; } #panel { width: 100%; border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="wall">
+    <div class="stage">
+      <div>
+        <h1 id="title">МАЛЧИН тоглоомыг гаргая!</h1>
+        <div class="sub" id="sub"></div>
+      </div>
+      <div class="bar" id="bar"><div class="fill" id="fill"></div><span id="pct">0%</span></div>
+      <div class="nums"><div><b id="total">0</b> / <span id="target">0</span> 💎</div><div><b id="count">0</b> дэмжигч</div></div>
+      <div class="recent" id="recent"></div>
+      <h2>🐑 Нэр нь тоглоомд мөнхлөгдөх дэмжигчид</h2>
+      <div class="donors" id="donors"><div class="empty">Анхны дэмжигч болоорой — Rose ч болно!</div></div>
+    </div>
+  </main>
+  <aside id="panel">
+    <h3>Зорилгын тохиргоо</h3>
+    <label for="cTitle">Гарчиг</label><input type="text" id="cTitle">
+    <label for="cSub">Тайлбар</label><input type="text" id="cSub">
+    <label for="cTarget">Зорилго (алмаз 💎)</label><input type="number" id="cTarget" min="1">
+    <label><input type="checkbox" id="cEnabled"> Тоглоомуудын дээд хэсэгт харуулах</label>
+    <div class="row"><button class="primary" id="save">Хадгалах</button></div>
+    <div class="status" id="status"></div>
+    <h3 style="margin-top:22px">Нэрсийн жагсаалт</h3>
+    <div class="row"><a class="btn" id="csv" href="/api/goal/donors.csv">⬇ CSV татах (credits-д)</a></div>
+    <h3 style="margin-top:22px">Турших</h3>
+    <div class="row">
+      <input type="text" id="tName" placeholder="нэр" value="Туршилт" style="flex:1">
+      <button id="test">+50 💎</button>
+    </div>
+    <div class="row"><button id="reset">♻ Тэглэх</button></div>
+    <p class="note">Gift-ийг bridge (start.bat) тоолно: LIVE-ийн бүх gift энд нэмэгдэж, компьютерт хадгалагдана (bridge/data). Туршилтын горимын (mock) gift тусдаа, хадгалагдахгүй.
+    LIVE Studio-д энэ хуудсыг <code>?overlay=1</code>-тэй тусдаа цонхоор барьж болно.</p>
+  </aside>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  if (params.get('overlay') === '1') document.body.classList.add('overlay');
+  if (params.get('transparent') === '1') document.body.classList.add('transparent');
+  const base = location.protocol.startsWith('http') ? '' : 'http://localhost:8787';
+  const fmt = (n) => Math.round(n).toLocaleString('en-US').replace(/,/g, ' ');
+  const esc = (s) => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let last = null, seen = new Set(), formFilled = false;
+
+  function render(g) {
+    const c = g.config, frac = Math.min(1, g.total / Math.max(1, c.target));
+    $('title').textContent = c.title; $('sub').textContent = c.sub || '';
+    $('fill').style.width = (frac * 100).toFixed(1) + '%';
+    $('pct').textContent = Math.floor(frac * 100) + '%';
+    $('total').textContent = fmt(g.total); $('target').textContent = fmt(c.target); $('count').textContent = g.count;
+    if (last && g.total > last.total) { $('bar').classList.remove('bump'); void $('bar').offsetWidth; $('bar').classList.add('bump'); }
+    const r = g.recent || [];
+    $('recent').innerHTML = r.length ? 'Сүүлд: ' + r.slice(0, 3).map(x => `<b>${esc(x.name)}</b> ${esc(x.gift)} +${fmt(x.diamonds)}💎`).join(' · ') : '';
+    if (g.top.length) {
+      $('donors').innerHTML = g.top.map((d, i) => {
+        const isNew = !seen.has(d.id) && last; seen.add(d.id);
+        const av = d.avatar ? `style="background-image:url('${esc(d.avatar)}')"` : '';
+        return `<div class="donor ${i < 3 ? 'top' : ''} ${isNew ? 'new' : ''}"><div class="av" ${av}>${d.avatar ? '' : esc((d.name || '?')[0])}</div>
+          <div class="who"><div class="n">${i < 3 ? ['🥇', '🥈', '🥉'][i] + ' ' : ''}${esc(d.name)}</div><div class="d">${fmt(d.diamonds)} 💎</div></div></div>`;
+      }).join('') + (g.count > g.top.length ? `<div class="donor"><div class="who"><div class="n">+${g.count - g.top.length} дэмжигч</div></div></div>` : '');
+    } else for (const d of g.top) seen.add(d.id);
+    if (!formFilled) { formFilled = true; $('cTitle').value = c.title; $('cSub').value = c.sub || ''; $('cTarget').value = c.target; $('cEnabled').checked = c.enabled; }
+    last = g;
+  }
+  const load = () => fetch(base + '/api/goal').then(r => r.json()).then(render).catch(() => { $('status').textContent = 'Bridge (start.bat) ажиллахгүй байна'; });
+  load(); setInterval(load, 2000);
+
+  const post = (path, body) => fetch(base + '/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).then(r => r.json());
+  $('save').onclick = () => post('goal/config', { title: $('cTitle').value, sub: $('cSub').value, target: +$('cTarget').value, enabled: $('cEnabled').checked })
+    .then(g => { render(g); $('status').textContent = 'Хадгаллаа ✓'; setTimeout(() => $('status').textContent = '', 1500); });
+  $('test').onclick = () => post('goal/test', { name: $('tName').value || 'Туршилт', diamonds: 50 }).then(render);
+  $('reset').onclick = () => { if (confirm('Бүх хандив, нэрсийг тэглэх үү? Буцаах боломжгүй.')) post('goal/reset').then(g => { seen = new Set(); render(g); }); };
+  $('csv').href = base + '/api/goal/donors.csv';
+})();
+</script>
+</body>
+</html>

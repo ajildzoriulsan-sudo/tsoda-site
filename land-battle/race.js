@@ -941,10 +941,13 @@ function drawCards() {
 }
 
 function drawHeader() {
-  const ty = 186;
+  const ty = 186, c = race.cls;
+  const goalOn = !!(window.LBLGoal && LBLGoal.active);
+  if (goalOn) LBLGoal.draw(ctx, 30, 146, W - 60, 78);   // donation goal replaces the title row
+  if (!goalOn) {
   text('МОРИН УРАЛДААН', 34, ty, 52, '#fff', 'left', 900, 10);
   ctx.font = `900 52px ${FONT}`; const tw = ctx.measureText('МОРИН УРАЛДААН').width;
-  const c = race.cls, px = 34 + tw + 16;
+  const px = 34 + tw + 16;
   roundRect(px, ty - 26, 250, 52, 26); ctx.fillStyle = race.phase === PHASE.RACE ? '#ff2d55' : 'rgba(255,255,255,.14)'; ctx.fill();
   text(`${race.round + 1}/6 · ${c.name}`, px + 125, ty + 1, 25, '#fff', 'center', 900);
   // 6-age progress dots
@@ -953,6 +956,7 @@ function drawHeader() {
     ctx.beginPath(); ctx.arc(dx, ty, cur ? 10 : 8, 0, TAU);
     ctx.fillStyle = done ? '#ffd166' : cur ? '#ff2d55' : 'rgba(255,255,255,.25)'; ctx.fill();
   });
+  }
 
   // how to play
   const cards = [
@@ -985,7 +989,8 @@ function drawHeader() {
     s = `🏇 ${c.name} · ${(clamp(lead.x / L, 0, 1) * c.km).toFixed(1)} / ${c.km} км · ${Math.floor(race.phaseT)}с`; col = '#ffd166';
   } else if (P === PHASE.RESULT) s = `🏆 ${c.name}-ий уралдааны дүн`;
   else s = '🎉 НААДАМ ӨНДӨРЛӨЛӨӨ';
-  text(s, 34, sy, 31, col, 'left', 900, 7);
+  if (goalOn) s = `${race.round + 1}/6 · ` + s;
+  text(fitText(s, W - 330, 31, 900), 34, sy, 31, col, 'left', 900, 7);
   text(`❤ ${fmt(race.totalLikes)}  💎 ${fmt(race.totalDiamonds)}`, W - 30, sy, 22, 'rgba(255,255,255,.8)', 'right', 800, 5);
   const champ = race.board.week && race.board.week[0];
   if (champ) text(fitText(`👑 7 хоног: ${champ.name}`, 330, 20, 800), W - 30, sy + 44, 20, '#ffd166', 'right', 800, 5);
@@ -1188,6 +1193,8 @@ const RACE_LINES = [
   ['r_win',      'Түрүүлэх',            'Түрүү морь бариандаа орлоо!'],
   ['r_buureg',   'Бүүрэг',              'Бүүрэг ч гэсэн баатар!'],
   ['r_fav',      'Аварга морь гарах',   'Аварга морь энэ удаа ч гарлаа!'],
+  ['goal_step',  'Зорилгын 25/50/75%',   'Зорилгын нэг хэсэг биеллээ! Баярлалаа!'],
+  ['goal_done',  'Зорилго биелэх',       'Зорилго биеллээ! Бүгдэд баярлалаа!'],
   ['r_champion', 'Наадам өндөрлөх',     'Наадам өндөрлөлөө! Баяр хүргэе!'],
 ];
 
@@ -1209,6 +1216,7 @@ const bridge = {
         if (typeof msg.viewers === 'number') race.viewerCount = msg.viewers;
         return;
       }
+      if (msg.type === 'goal') { if (window.LBLGoal) LBLGoal.update(msg.goal); return; }
       if (msg.type === 'events') { for (const ev of msg.events) this.accept(ev); return; }
       this.accept(msg);
     };
@@ -1369,6 +1377,11 @@ function initPanel() {
   commentator.ttsBase = httpBase($('wsUrl').value) || (location.protocol.startsWith('http') ? location.origin : '');
   scores.base = commentator.ttsBase;
   if (params.get('ws') || params.get('connect') === '1') bridge.connect($('wsUrl').value);
+  if (window.LBLGoal) {
+    LBLGoal.start(commentator.ttsBase);
+    LBLGoal.on(e => { if (e.type === 'milestone') race.announce({ icon: '🐑', text: `ЗОРИЛГЫН ${e.pct}% БИЕЛЛЭЭ!`, sub: e.goal.config.title, color: { h: 45, s: 100, l: 60 }, dur: 3.2, prio: 3,
+      voice: e.pct >= 100 ? `Зорилго биеллээ! ${e.goal.config.title} Бүгдэд баярлалаа!` : `Зорилгын ${e.pct} хувь биеллээ! Баярлалаа!`, vprio: 3, vkey: e.pct >= 100 ? 'goal_done' : 'goal_step' }); });
+  }
   if (params.get('demo') === '1') { autoSim = true; addBots(14); }
   if (params.get('voice')) audio.settings.voiceMode = params.get('voice');
 

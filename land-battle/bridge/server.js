@@ -53,6 +53,7 @@ function publish(ev) {
   buffer.push(out);
   if (buffer.length > BUFFER_MAX) buffer.shift();
   broadcast(out);
+  if (ev.type === 'gift' && typeof goalAdd === 'function') goalAdd(ev);
 }
 
 // ───────── like aggregation: one TikTok user can fire many like events ─────────
@@ -311,7 +312,70 @@ function readJson(req, max, cb) {
 function sendJson(res, code, obj) { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); }
 const safeKey = (s) => /^[a-z0-9_-]{1,40}$/i.test(String(s || ''));
 
+// ───────── Donation goal (e.g. "publish the МАЛЧИН game"): every gift fills the bar ─────────
+// Counted here, once, for all windows. Mock mode uses a separate test goal that is never saved.
+const GOAL_KEY = MOCK ? 'goal_test' : 'goal';
+const DEFAULT_GOAL = { title: 'МАЛЧИН тоглоомыг гаргая!', sub: 'Хандив өгсөн хүн бүрийн нэр тоглоомд мөнхлөгдөнө', target: 10000, enabled: true };
+function goalDoc() {
+  store.docs[GOAL_KEY] = store.docs[GOAL_KEY] || { total: 0, donors: {}, log: [] };
+  return store.docs[GOAL_KEY];
+}
+function goalConfig() { return { ...DEFAULT_GOAL, ...(store.docs.goalConfig || {}) }; }
+function goalSummary() {
+  const g = goalDoc(), donors = Object.entries(g.donors).map(([id, d]) => ({ id, ...d }));
+  donors.sort((a, b) => b.diamonds - a.diamonds);
+  return { config: goalConfig(), total: g.total, count: donors.length, top: donors.slice(0, 50), recent: g.log.slice(-8).reverse() };
+}
+let goalTimer = null;
+function goalChanged() {
+  if (!MOCK) saveStore();
+  clearTimeout(goalTimer);
+  goalTimer = setTimeout(() => broadcast({ type: 'goal', goal: goalSummary() }), 250);
+}
+function goalAdd(ev) {
+  const u = ev.user || {}, gift = ev.gift || {};
+  const dia = Math.max(1, Number(gift.diamonds) || 1) * Math.max(1, Number(gift.count) || 1);
+  if (!u.id) return;
+  const g = goalDoc();
+  const d = g.donors[u.id] = g.donors[u.id] || { name: '', handle: '', avatar: '', diamonds: 0, gifts: 0, first: Date.now() };
+  d.name = String(u.nickname || u.uniqueId || d.name).slice(0, 60); d.handle = String(u.uniqueId || d.handle).slice(0, 60);
+  if (u.avatar) d.avatar = String(u.avatar).slice(0, 500);
+  d.diamonds += dia; d.gifts += 1; d.last = Date.now();
+  g.total += dia;
+  g.log.push({ id: u.id, name: d.name, avatar: d.avatar, gift: String(gift.name || 'Gift').slice(0, 40), diamonds: dia, at: Date.now() });
+  if (g.log.length > 200) g.log.splice(0, g.log.length - 200);
+  goalChanged();
+}
+const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
 function handleApi(req, res, route, query) {
+  if (route === 'goal' && req.method === 'GET') return sendJson(res, 200, goalSummary());
+  if (route === 'goal/config' && req.method === 'POST') {
+    if (!isLocal(req)) return sendJson(res, 403, {});
+    return readJson(req, 1e4, b => {
+      if (!b) return sendJson(res, 400, {});
+      const c = goalConfig();
+      store.docs.goalConfig = { title: String(b.title ?? c.title).slice(0, 80), sub: String(b.sub ?? c.sub).slice(0, 120),
+        target: Math.max(1, Number(b.target) || c.target), enabled: b.enabled === undefined ? c.enabled : !!b.enabled };
+      saveStore(); goalChanged(); sendJson(res, 200, goalSummary());
+    });
+  }
+  if (route === 'goal/test' && req.method === 'POST') {             // test donation from the goal page
+    if (!isLocal(req)) return sendJson(res, 403, {});
+    return readJson(req, 1e4, b => { goalAdd({ user: { id: 'test_' + (b && b.name || 'tester'), nickname: (b && b.name) || 'Туршилт', uniqueId: 'test' }, gift: { name: 'Test', diamonds: Number(b && b.diamonds) || 10, count: 1 } }); sendJson(res, 200, goalSummary()); });
+  }
+  if (route === 'goal/reset' && req.method === 'POST') {
+    if (!isLocal(req)) return sendJson(res, 403, {});
+    store.docs[GOAL_KEY] = { total: 0, donors: {}, log: [] }; goalChanged(); return sendJson(res, 200, goalSummary());
+  }
+  if (route === 'goal/donors.csv') {
+    const g = goalDoc();
+    const rows = Object.entries(g.donors).map(([id, d]) => ({ id, ...d })).sort((a, b) => b.diamonds - a.diamonds);
+    const csv = '\ufeff' + ['Нэр,TikTok,Алмаз,Gift тоо,Анх хандивласан'].concat(rows.map(d =>
+      [d.name, d.handle ? '@' + d.handle : '', d.diamonds, d.gifts, new Date(d.first).toISOString().slice(0, 10)].map(csvCell).join(','))).join('\r\n');
+    res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="malchin-donors.csv"' });
+    return res.end(csv);
+  }
   if (route === 'scores' && req.method === 'POST') {
     if (!isLocal(req)) return sendJson(res, 403, {});
     return readJson(req, 2e6, body => {
@@ -379,6 +443,7 @@ function broadcast(msg) {
 }
 wss.on('connection', ws => {
   ws.send(JSON.stringify({ type: 'status', ...liveStatus, viewers, boot: BOOT }));
+  ws.send(JSON.stringify({ type: 'goal', goal: goalSummary() }));
   ws.on('message', raw => {
     let m; try { m = JSON.parse(raw); } catch { return; }
     if (m.type === 'hello') {

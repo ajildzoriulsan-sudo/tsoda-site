@@ -391,15 +391,19 @@ const bgCanvas = document.createElement('canvas'); bgCanvas.width = 270; bgCanva
 })();
 
 function drawHeader() {
-  const ty = 186;
+  const ty = 186, n = CFG.questionsPerGame;
+  const goalOn = !!(window.LBLGoal && LBLGoal.active);
+  if (goalOn) LBLGoal.draw(ctx, 30, 146, W - 60, 78);   // donation goal replaces the title row
+  if (!goalOn) {
   text('АСУУЛТ ХАРИУЛТ', 34, ty, 52, '#fff', 'left', 900, 10);
   ctx.font = `900 52px ${FONT}`; const tw = ctx.measureText('АСУУЛТ ХАРИУЛТ').width;
-  const px = 34 + tw + 16, n = CFG.questionsPerGame;
+  const px = 34 + tw + 16;
   roundRect(px, ty - 26, 150, 52, 26); ctx.fillStyle = quiz.phase === PHASE.QUESTION ? '#ff2d55' : 'rgba(255,255,255,.14)'; ctx.fill();
   text(`${Math.min(quiz.qIndex + 1, n)}/${n}`, px + 75, ty + 1, 26, '#fff', 'center', 900);
   for (let i = 0; i < n; i++) {
     const dx = W - 36 - (n - 1 - i) * 18, done = i < quiz.qIndex, cur = i === quiz.qIndex;
     ctx.beginPath(); ctx.arc(dx, ty, cur ? 7 : 5.5, 0, TAU); ctx.fillStyle = done ? '#ffd166' : cur ? '#ff2d55' : 'rgba(255,255,255,.25)'; ctx.fill();
+  }
   }
   const cards = [
     ['answer', '💬', '1–4 БИЧ', 'Хариулах', CYAN],
@@ -426,7 +430,8 @@ function drawHeader() {
   } else if (P === PHASE.REVEAL) s = `✅ ${quiz.correctList.length} хүн зөв хариуллаа`;
   else if (P === PHASE.BOARD) s = '🏆 Онооны самбар';
   else s = '🎉 Тэмцээн өндөрлөлөө';
-  text(s, 34, sy, 31, col, 'left', 900, 7);
+  if (goalOn) s = `${Math.min(quiz.qIndex + 1, n)}/${n} · ` + s;
+  text(fitText(s, W - 330, 31, 900), 34, sy, 31, col, 'left', 900, 7);
   text(`❤ ${fmt(quiz.totalLikes)}  💎 ${fmt(quiz.totalDiamonds)}`, W - 30, sy, 22, 'rgba(255,255,255,.8)', 'right', 800, 5);
   const champ = quiz.board.week && quiz.board.week[0];
   if (champ) text(fitText(`👑 7 хоног: ${champ.name}`, 330, 20, 800), W - 30, sy + 44, 20, '#ffd166', 'right', 800, 5);
@@ -623,6 +628,8 @@ const QUIZ_LINES = [
   ['q_help',     'Gift: буруу арилгах',  'Баярлалаа! Бүгдэд нэг буруу хариулт арилав!'],
   ['q_cat',      'Сэдэв сонгох',         'Дараагийн асуултын сэдвийг коммент хэсэгт бичээрэй!'],
   ['q_board',    'Онооны самбар',        'Онооны самбарыг харцгаая!'],
+  ['goal_step',  'Зорилгын 25/50/75%',   'Зорилгын нэг хэсэг биеллээ! Баярлалаа!'],
+  ['goal_done',  'Зорилго биелэх',       'Зорилго биеллээ! Бүгдэд баярлалаа!'],
   ['q_champion', 'Тэмцээн өндөрлөх',     'Тэмцээн өндөрлөлөө! Баяр хүргэе!'],
 ];
 
@@ -644,6 +651,7 @@ const bridge = {
         if (typeof msg.viewers === 'number') quiz.viewerCount = msg.viewers;
         return;
       }
+      if (msg.type === 'goal') { if (window.LBLGoal) LBLGoal.update(msg.goal); return; }
       if (msg.type === 'events') { for (const ev of msg.events) this.accept(ev); return; }
       this.accept(msg);
     };
@@ -805,6 +813,11 @@ function initPanel() {
   commentator.ttsBase = httpBase($('wsUrl').value) || (location.protocol.startsWith('http') ? location.origin : '');
   scores.base = commentator.ttsBase;
   if (params.get('ws') || params.get('connect') === '1') bridge.connect($('wsUrl').value);
+  if (window.LBLGoal) {
+    LBLGoal.start(commentator.ttsBase);
+    LBLGoal.on(e => { if (e.type === 'milestone') quiz.announce({ icon: '🐑', text: `ЗОРИЛГЫН ${e.pct}% БИЕЛЛЭЭ!`, sub: e.goal.config.title, color: { h: 45, s: 100, l: 60 }, dur: 3.2, prio: 3,
+      voice: e.pct >= 100 ? `Зорилго биеллээ! ${e.goal.config.title} Бүгдэд баярлалаа!` : `Зорилгын ${e.pct} хувь биеллээ! Баярлалаа!`, vprio: 3, vkey: e.pct >= 100 ? 'goal_done' : 'goal_step' }); });
+  }
   if (params.get('demo') === '1') { autoSim = true; addBots(14); }
   if (params.get('voice')) audio.settings.voiceMode = params.get('voice');
 
