@@ -57,6 +57,13 @@ const LANE = [
   { h: 46, s: 95, l: 52 }, { h: 280, s: 70, l: 58 }, { h: 24, s: 95, l: 55 },
 ];
 const GOLD = { h: 45, s: 100, l: 60 }, RED = { h: 350, s: 95, l: 62 }, CYAN = { h: 178, s: 90, l: 55 }, GREEN = { h: 140, s: 85, l: 55 };
+// Gift tiers: the horse leaves the ground. Bigger gift → higher, longer, faster flight.
+const FLY = [
+  { word: 'ҮСЭРЛЭЭ',      icon: '🌹', secs: 1.4, alt: 0.55, bonus: 0.7, wings: null },        // Rose
+  { word: 'ДЭВЛЭЛЭЭ',     icon: '🎁', secs: 3.5, alt: 0.8,  bonus: 1.0, wings: '#ffffff' },   // < 100 💎
+  { word: 'НИСЛЭЭ',       icon: '💎', secs: 6,   alt: 1.0,  bonus: 1.6, wings: '#ffd166' },   // 100–999 💎
+  { word: 'ХИЙМОРЬ БОЛЛОО', icon: '🌌', secs: 9, alt: 1.2,  bonus: 2.2, wings: '#ffd166', rainbow: true }, // 1000+ 💎
+];
 const PHASE = { VOTE: 'VOTE', READY: 'READY', RACE: 'RACE', RESULT: 'RESULT', FINALE: 'FINALE' };
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -92,7 +99,7 @@ const race = {
   totalLikes: 0, totalDiamonds: 0, viewerCount: 0,
   feed: [], banners: [], banner: null, particles: [], floaters: [], flash: {}, flags: new Set(),
   seen: new SeenSet(), lastBeep: 0, gallopT: 0,
-  lastResult: null,
+  lastResult: null, objects: [], timeScale: 1, nextEventT: 10, shake: 0, flashScreen: 0,
 
   get cls() { return CLASSES[this.round]; },
 
@@ -168,23 +175,42 @@ const race = {
     const h = this.horses[v.vote];
     const name = gift.name || 'Gift';
     const isRose = /rose/i.test(name) || dia === 1;
-    const level = isRose ? 0.45 : dia < 100 ? 0.8 : 1.5;
-    const secs = (isRose ? 2.5 : dia < 100 ? 4 : 6) * Math.min(4, Math.sqrt(count));
+    const tier = isRose ? 0 : dia < 100 ? 1 : dia < 1000 ? 2 : 3;
+    const T = FLY[tier];
+    const secs = T.secs * Math.min(3, Math.sqrt(count));
     h.contrib.set(v.id, (h.contrib.get(v.id) || 0) + value * 10);
-    if (this.phase === PHASE.RACE) {
-      h.giftLevel = Math.max(h.giftLevel, level * CFG.giftPower);
-      h.giftUntil = Math.max(h.giftUntil, this.t) + secs;
-    } else h.giftBank += secs;               // saved and released at the start
-    if (isRose) { this.flash.rose = this.t; this.pushFeed(`🌹 ${v.name} → ${h.i + 1} ${h.name}`, LANE[h.i]); audio.play('rose'); }
-    else {
-      this.flash.gift = this.t;
-      this.pushFeed(`🎁 ${v.name} → ${h.i + 1} ${h.name} · ${name}`, GOLD);
-      this.announce({ avatar: v, text: `${h.i + 1} ${h.name.toUpperCase()} НИСЭЖ БАЙНА!`, sub: `${v.name} · ${name} · хурдны тэжээл`, color: dia >= 100 ? GOLD : GREEN,
-        dur: dia >= 100 ? 3 : 2.2, prio: dia >= 100 ? 3 : 2,
-        voice: pick([`${v.name} хурдны тэжээл өглөө! ${h.i + 1} дугаар ${h.name} нисэж байна!`, `Баярлалаа ${v.name}! ${h.name} морь давхиж байна!`]), vprio: dia >= 100 ? 3 : 2, vkey: 'r_gift' });
-      audio.play(dia >= 100 ? 'big' : 'gift');
-      if (h.screenX != null) this.burst(h.screenX, h.screenY, GOLD, 30, 1.2);
-    }
+    if (this.phase === PHASE.RACE) this.takeOff(h, tier, secs);
+    else { h.bankTier = Math.max(h.bankTier, tier); h.giftBank += secs; }   // released at the start: the horse flies out of the gate
+    this.flash[isRose ? 'rose' : 'gift'] = this.t;
+    this.pushFeed(`${T.icon} ${v.name} → ${h.i + 1} ${h.name} · ${name}`, tier >= 2 ? GOLD : LANE[h.i]);
+    if (tier === 0) { audio.play('rose'); return; }
+    const big = tier >= 2;
+    this.announce({ avatar: v, text: `${h.i + 1} ${h.name.toUpperCase()} ${T.word}!`, sub: `${v.name} · ${name}${count > 1 ? ' ×' + count : ''}`,
+      color: big ? GOLD : GREEN, dur: big ? 3 : 2.2, prio: big ? 3 : 2,
+      voice: tier === 3 ? `Хийморь! ${v.name}-ийн ачаар ${h.name} морь алтан хүлэг болж нислээ!`
+        : pick([`${v.name}-ийн ачаар ${h.i + 1} дугаар ${h.name} нисч байна!`, `Хараач! ${h.name} морь нислээ! Баярлалаа ${v.name}!`]),
+      vprio: big ? 3 : 2, vkey: tier === 3 ? 'r_kheemori' : 'r_fly' });
+    audio.play(big ? 'big' : 'gift');
+    if (tier === 3) { this.flashScreen = 0.8; this.shake = 0.5; }
+  },
+
+  takeOff(h, tier, secs) {
+    h.flyTier = this.t < h.flyUntil ? Math.max(h.flyTier, tier) : tier;
+    h.flyUntil = Math.max(h.flyUntil, this.t) + secs;
+    if (h.alt < 0.2) { audio.play('whoosh'); if (h.screenX != null) this.burst(h.screenX, h.screenY, { h: 35, s: 30, l: 62 }, 14, 0.8); }
+  },
+
+  /** "?" box on the track — nobody knows what is inside */
+  mystery(h) {
+    const r = Math.random(); let label, col;
+    if (r < 0.4) { h.boostUntil = this.t + 3; label = '⚡ ХУРД!'; col = GOLD; audio.play('gift'); }
+    else if (r < 0.6) { this.takeOff(h, 1, 2.5); label = '🪽 НИСЛЭЭ!'; col = CYAN; }
+    else if (r < 0.85) { h.slowUntil = this.t + 2; h.slowMul = 0.45; h.dizzyUntil = this.t + 2; label = '🌀 ТОЛГОЙ ЭРГЭЛЭЭ'; col = RED; audio.play('stumble'); }
+    else { label = '🎁 ДЭМЖИГЧДЭД +20'; col = GREEN; for (const id of h.votes) { const v = this.viewers.get(id); if (v) v.score += 20; } audio.play('rose'); }
+    audio.play('box');
+    this.floaters.push({ h, text: label, color: col, t: 0, big: true });
+    this.pushFeed(`❓ ${h.i + 1} ${h.name}: ${label}`, col);
+    commentator.say(`${h.i + 1} дугаар нууц хайрцаг авлаа! ${label.replace(/[^\p{L}\p{N} +!]/gu, '').trim()}`, 1, 'r_box');
   },
 
   onFollow(user) {
@@ -232,11 +258,14 @@ const race = {
     this.horses = coats.map((c, i) => ({
       i, name: c[0], coat: c[1], dark: c[2],
       x: 0, v: 0, e: 0, likes: 0, votes: new Set(), contrib: new Map(),
-      giftLevel: 0, giftUntil: 0, giftBank: 0,
+      giftBank: 0, bankTier: 0, alt: 0, flyTier: 0, flyUntil: 0, wasAir: false,
+      slowUntil: 0, slowMul: 1, boostUntil: 0, dizzyUntil: 0,
       base: rand(0.95, 1.05), f1: rand(0.25, 0.6), p1: rand(0, TAU), f2: rand(0.9, 1.6), p2: rand(0, TAU),
       stride: rand(0, TAU), finished: false, finishT: 0, place: 0, screenX: null, screenY: 0, dustAcc: 0,
     }));
     for (const v of this.viewers.values()) v.vote = -1;
+    this.objects = makeObjects(round);
+    this.timeScale = 1; this.nextEventT = rand(9, 13);
     this.camX = 0; this.leader = null; this.firstFinishT = 0; this.finishOrder = []; this.flags.clear();
     this.banners = []; this.banner = null;
     this.setPhase(PHASE.VOTE);
@@ -250,7 +279,7 @@ const race = {
   startRace() {
     this.setPhase(PHASE.RACE);
     audio.intensity = 1;
-    for (const h of this.horses) if (h.giftBank > 0) { h.giftLevel = 0.8 * CFG.giftPower; h.giftUntil = this.t + h.giftBank; h.giftBank = 0; }
+    for (const h of this.horses) if (h.giftBank > 0) { this.takeOff(h, h.bankTier, h.giftBank); h.giftBank = 0; }
     this.announce({ icon: '🏇', text: 'МОРЬД ГАРААНААС МОРДЛОО!', sub: 'Like дарж морио хурдлуул!', color: GOLD, dur: 2.2, prio: 3,
       voice: pick(['Морьд гараанаас мордлоо! Like дарж морио хурдлуулаарай!', 'Уралдаан эхэллээ! Дэмжсэн морио like-аар давхиулаарай!']), vprio: 3, vkey: 'r_go' });
     audio.play('go');
@@ -268,12 +297,14 @@ const race = {
       const place = this.horses[v.vote].place;
       const pts = CFG.pointsWin[place - 1] || 0;
       v.score += pts + 5;
-      if (place === 1) { v.wins++; winners.push(v); }
+      if (place === 1) { v.wins++; winners.push(v); v.streak = (v.streak || 0) + 1; } else v.streak = 0;
     }
     const uyachs = this.horses.map(h => this.uyach(h));
     uyachs.forEach(u => { if (u) u.score += CFG.uyachBonus; });
     const first = this.finishOrder[0], last = this.finishOrder[this.finishOrder.length - 1];
-    this.lastResult = { order: this.finishOrder.slice(), winners, uyachs };
+    const streak = winners.filter(v => v.streak >= 2).sort((a, b) => b.streak - a.streak)[0] || null;
+    this.lastResult = { order: this.finishOrder.slice(), winners, uyachs, streak };
+    if (streak) setTimeout(() => commentator.say(`${streak.name} ${streak.streak} удаа дараалан таалаа!`, 2), 400);
     this.setPhase(PHASE.RESULT);
     audio.intensity = 0;
     audio.play('win');
@@ -338,38 +369,104 @@ const race = {
     const targetCam = P === PHASE.RACE || P === PHASE.RESULT ? clamp(lead.x - 620, 0, L - 830) : 0;
     this.camX += (targetCam - this.camX) * Math.min(1, dt * 3);
 
+    this.shake = Math.max(0, this.shake - dt); this.flashScreen = Math.max(0, this.flashScreen - dt * 1.6);
+    if (P !== PHASE.RACE) this.timeScale = 1;
     if (!this.banner && this.banners.length) this.banner = this.banners.shift();
     if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
-    for (const f of this.floaters) { f.t += dt; f.y -= 70 * dt; }
-    this.floaters = this.floaters.filter(f => f.t < 1.1);
+    for (const f of this.floaters) { f.t += dt; if (!f.h) f.y -= 70 * dt; }
+    this.floaters = this.floaters.filter(f => f.t < (f.big ? 2.2 : 1.1));
     for (const q of this.particles) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 1 - 2.5 * dt; q.vy *= 1 - 2.5 * dt; }
     this.particles = this.particles.filter(q => q.t < q.life);
     const maxP = quality < 0.8 ? 250 : 700;
     if (this.particles.length > maxP) this.particles.splice(0, this.particles.length - maxP);
   },
 
-  simulate(dt) {
+  simulate(dtReal) {
     const unit = L / CFG.raceSec;
+    const order = this.horses.filter(h => !h.finished).sort((a, b) => b.x - a.x);
+    // 📸 photo finish: the two leaders are neck and neck near the line → slow motion
+    if (!this.finishOrder.length && order.length > 1 && order[0].x > L - 650 && order[0].x - order[1].x < 230 && !this.flags.has('photo')) {
+      this.flags.add('photo');
+      this.announce({ icon: '📸', text: 'ФОТО ФИНИШ!', sub: `${order[0].i + 1} уу? ${order[1].i + 1} үү?`, color: CYAN, dur: 2.6, prio: 3,
+        voice: 'Фото финиш! Хэн нь түрүүлэх вэ?!', vprio: 3, vkey: 'r_photo' });
+    }
+    const slowMo = this.flags.has('photo') && !this.finishOrder.length;
+    this.timeScale += ((slowMo ? 0.35 : 1) - this.timeScale) * Math.min(1, dtReal * 4);
+    const dt = dtReal * this.timeScale;
     let lead = null; for (const h of this.horses) if (!lead || h.x > lead.x) lead = h;
+
     for (const h of this.horses) {
+      const flying = this.t < h.flyUntil, T = FLY[h.flyTier];
+      h.alt += ((flying ? T.alt : 0) - h.alt) * Math.min(1, dt * (flying ? 4 : 5));
+      if (h.alt > 0.25) h.wasAir = true;
+      if (h.wasAir && h.alt < 0.04) {            // landing
+        h.wasAir = false; audio.play('land');
+        if (h.screenX != null) this.burst(h.screenX, h.screenY + 10, { h: 35, s: 30, l: 62 }, 16, 0.9);
+      }
       if (h.finished) { h.v *= 1 - 1.5 * dt; h.x += h.v * dt; h.stride += h.v * dt / 34; continue; }
+      const air = h.alt > 0.3;
+      // terrain: river and mud slow down horses on the ground; flying horses pass over
+      let terrain = 1;
+      for (const o of this.objects) {
+        if (o.type === 'river') {
+          if (Math.abs(h.x - o.x) < o.w / 2 && !air) {
+            terrain = Math.min(terrain, 0.4);
+            if (Math.random() < 0.3 && h.screenX != null) this.particles.push({ x: h.screenX + rand(-20, 30), y: h.screenY + rand(-14, 14), vx: rand(-60, 60), vy: rand(-90, -20), life: 0.5, t: 0, r: rand(3, 6), color: { h: 200, s: 80, l: 80 } });
+            if (Math.random() < dt * 3) audio.play('splash');
+          }
+        } else if (o.type === 'mud') {
+          if (o.lane === h.i && Math.abs(h.x - o.x) < o.w / 2 && !air) terrain = Math.min(terrain, 0.55);
+        } else if (o.type === 'box' && !o.taken && o.lane === h.i && h.x >= o.x) { o.taken = true; this.mystery(h); }
+      }
       const wobble = 1 + 0.07 * Math.sin(this.t * h.f1 + h.p1) + 0.04 * Math.sin(this.t * h.f2 + h.p2);
       const behind = (lead.x - h.x) / L;
       const rubber = 1 + Math.min(0.16, behind * 0.7);
       const likeBonus = unit * 1.15 * (1 - Math.exp(-h.e / 10));
-      const giftBonus = this.t < h.giftUntil ? unit * h.giftLevel : 0;
-      const target = unit * h.base * wobble * rubber + likeBonus + giftBonus;
+      const slow = this.t < h.slowUntil ? h.slowMul : 1;
+      const run = (unit * h.base * wobble * rubber + likeBonus) * terrain * slow;
+      const extra = (this.t < h.boostUntil ? unit * 0.8 : 0) + (flying ? unit * T.bonus * CFG.giftPower : 0);
       const ramp = Math.min(1, this.phaseT / 1.5);
-      h.v += (target * ramp - h.v) * Math.min(1, dt * 2.2);
+      h.v += ((run + extra) * ramp - h.v) * Math.min(1, dt * 2.2);
       h.x += h.v * dt;
       h.e *= Math.exp(-dt / 2.2);
-      h.stride += h.v * dt / 34;
+      h.stride += h.v * dt / 34 * (air ? 0.4 : 1);
       if (h.x >= L) {
         h.finished = true; h.finishT = this.phaseT; this.finishOrder.push(h);
         if (this.finishOrder.length === 1) {
           this.firstFinishT = this.phaseT;
+          if (slowMo) { audio.play('photo'); this.flashScreen = 1; }
           this.announce({ icon: '🏆', text: `${h.i + 1} ${h.name.toUpperCase()} ТҮРҮҮЛЛЭЭ!`, sub: 'Бариандаа орлоо!', color: GOLD, dur: 2.5, prio: 3 });
           audio.play('win');
+        }
+      }
+    }
+
+    // 🌊 warn about the river before the leader reaches it — gifts make horses fly over it
+    const river = this.objects.find(o => o.type === 'river');
+    if (river && lead.x > river.x - 1500 && lead.x < river.x && !this.flags.has('river')) {
+      this.flags.add('river');
+      this.announce({ icon: '🌊', text: 'УРД ГОЛ БАЙНА!', sub: 'Нисэж буй морь л дээгүүр нь гатална — 🎁', color: CYAN, dur: 2.6, prio: 3,
+        voice: 'Урд гол байна! Нисэх морь л дээгүүр нь гатална!', vprio: 2, vkey: 'r_river' });
+    }
+    // random race events keep everyone guessing
+    if (this.phaseT > this.nextEventT && lead.x < L * 0.9) {
+      this.nextEventT = this.phaseT + rand(9, 14);
+      if (Math.random() < 0.55) {
+        const cands = order.slice(0, 3).filter(h => h.alt < 0.2);
+        const h = cands.length ? pick(cands) : null;
+        if (h) {
+          h.slowUntil = this.t + 1.4; h.slowMul = 0.3; h.dizzyUntil = this.t + 1.4;
+          audio.play('stumble'); this.shake = 0.25;
+          this.announce({ icon: '😱', text: `${h.i + 1} ${h.name.toUpperCase()} БҮДЭРЛЭЭ!`, sub: 'Юу болох бол?!', color: RED, dur: 2, prio: 2,
+            voice: pick([`Өө! ${h.i + 1} дугаар ${h.name} бүдэрлээ!`, `${h.name} морь бүдэрлээ! Одоо юу болох бол?`]), vprio: 2, vkey: 'r_stumble' });
+        }
+      } else {
+        const h = order[order.length - 1];
+        if (h) {
+          h.boostUntil = this.t + 3.5;
+          this.announce({ icon: '🔥', text: `${h.i + 1} ${h.name.toUpperCase()}: ХИЙМОРЬ СЭРГЭЛЭЭ!`, sub: 'Сүүлийн морь гэнэт давхилаа', color: GOLD, dur: 2.2, prio: 2,
+            voice: `Хийморь сэргэлээ! ${h.i + 1} дугаар ${h.name} гүйцэж байна!`, vprio: 2, vkey: 'r_comeback' });
+          audio.play('whoosh');
         }
       }
     }
@@ -383,16 +480,30 @@ const race = {
       this.flags.add('final'); audio.intensity = 2;
       this.announce({ icon: '🏁', text: 'БАРИА ОЙРТОЖ БАЙНА!', sub: 'Сүүлчийн хүч — like!', color: RED, dur: 2, prio: 2, voice: 'Бариа ойртож байна! Сүүлчийн хүчээ гаргаарай!', vprio: 2, vkey: 'r_final' });
     }
-    // gallop sound follows the leader's speed
     this.gallopT += dt;
-    const interval = clamp(0.42 * (L / CFG.raceSec) / Math.max(60, lead.v), 0.22, 0.6);
-    if (this.gallopT > interval) { this.gallopT = 0; audio.play('gallop'); }
+    const interval = clamp(0.42 * unit / Math.max(60, lead.v), 0.22, 0.6);
+    if (this.gallopT > interval && lead.alt < 0.3) { this.gallopT = 0; audio.play('gallop'); }
     const done = this.horses.every(h => h.finished);
-    if (done || (this.firstFinishT && this.phaseT - this.firstFinishT > 8) || this.phaseT > CFG.raceSec * 2.2) this.finishRace();
+    if (done || (this.firstFinishT && this.phaseT - this.firstFinishT > 8) || this.phaseT > CFG.raceSec * 2.5) this.finishRace();
   },
 
   topViewers(n) { return [...this.viewers.values()].filter(v => v.score > 0).sort((a, b) => b.score - a.score).slice(0, n); },
 };
+
+/** River, mud patches and "?" mystery boxes for one race. Later age classes get more surprises. */
+function makeObjects(round) {
+  const o = [{ type: 'river', x: L * rand(0.42, 0.58), w: 220 }];
+  const nearRiver = (x) => Math.abs(x - o[0].x) < 420;
+  for (let k = 0; k < 2 + Math.floor(round / 2); k++) {
+    let x; do { x = L * rand(0.14, 0.88); } while (nearRiver(x));
+    o.push({ type: 'mud', x, w: 280, lane: Math.floor(Math.random() * 6) });
+  }
+  for (let k = 0; k < 5 + round; k++) {
+    let x; do { x = L * rand(0.1, 0.92); } while (nearRiver(x));
+    o.push({ type: 'box', x, lane: Math.floor(Math.random() * 6), taken: false });
+  }
+  return o;
+}
 
 // session persistence (viewer scores survive a reload)
 const SESSION_KEY = 'race.session.v1';
@@ -490,6 +601,7 @@ function drawSteppe() {
       }
     }
   }
+  drawObjects(top, bot);
   // lane separators
   ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 2; ctx.setLineDash([22, 18]);
   ctx.lineDashOffset = race.camX % 40;
@@ -526,22 +638,60 @@ function drawSteppe() {
   ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(0, top, W, 4); ctx.fillRect(0, bot - 4, W, 4);
 }
 
+function drawObjects(top, bot) {
+  for (const o of race.objects) {
+    const x = wx(o.x);
+    if (x < -320 || x > W + 320) continue;
+    if (o.type === 'river') {
+      const x0 = x - o.w / 2;
+      ctx.fillStyle = '#7a5a35'; ctx.fillRect(x0 - 14, top, o.w + 28, bot - top);   // muddy banks
+      const g = ctx.createLinearGradient(x0, 0, x0 + o.w, 0);
+      g.addColorStop(0, '#2a6fa3'); g.addColorStop(0.5, '#4fb0e3'); g.addColorStop(1, '#2a6fa3');
+      ctx.fillStyle = g; ctx.fillRect(x0, top, o.w, bot - top);
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+      for (let yy = top + 14; yy < bot; yy += 26) {
+        ctx.beginPath();
+        for (let xx = 0; xx <= o.w; xx += 10) { const wy = yy + Math.sin((xx + race.t * 60 + yy) / 18) * 4; xx ? ctx.lineTo(x0 + xx, wy) : ctx.moveTo(x0, wy); }
+        ctx.stroke();
+      }
+      text('🌊 ГОЛ', x, top + 14, 20, '#fff', 'center', 900, 5);
+    } else if (o.type === 'mud') {
+      const ly = TRACK.top + o.lane * TRACK.laneH;
+      ctx.fillStyle = 'rgba(92,62,32,.85)'; roundRect(x - o.w / 2, ly + 12, o.w, TRACK.laneH - 24, 34); ctx.fill();
+      ctx.fillStyle = 'rgba(60,38,18,.9)';
+      for (let k = 0; k < 6; k++) { ctx.beginPath(); ctx.ellipse(x - o.w / 2 + 30 + k * 42, ly + TRACK.laneH / 2 + Math.sin(k * 2.3) * 14, 13, 8, k, 0, TAU); ctx.fill(); }
+    } else if (o.type === 'box' && !o.taken) {
+      const cy = TRACK.top + (o.lane + 0.5) * TRACK.laneH + Math.sin(race.t * 4 + o.x) * 4;
+      const glow = ctx.createRadialGradient(x, cy, 4, x, cy, 46);
+      glow.addColorStop(0, 'rgba(255,215,90,.6)'); glow.addColorStop(1, 'rgba(255,215,90,0)');
+      ctx.fillStyle = glow; ctx.fillRect(x - 46, cy - 46, 92, 92);
+      roundRect(x - 24, cy - 24, 48, 48, 10); ctx.fillStyle = '#7b3fe4'; ctx.fill();
+      ctx.lineWidth = 4; ctx.strokeStyle = '#ffd166'; ctx.stroke();
+      text('?', x, cy + 2, 36, '#fff', 'center', 900);
+      // suspense: the lane's horse is closing in
+      const h = race.horses[o.lane];
+      if (h && race.phase === PHASE.RACE && o.x - h.x < 600 && o.x - h.x > 0)
+        text('Юу болох бол?', x, cy - 40, 20, '#ffd166', 'center', 900, 5);
+    }
+  }
+}
+
 /** Top-down horse with a child jockey, facing right. */
 function drawHorse(h, x, y) {
-  const s = race.cls.size * 1.6;
-  const moving = h.v > 5;
+  const air = h.alt > 0.2;
+  const s = race.cls.size * 1.6 * (1 + h.alt * 0.3);
+  const moving = h.v > 5 && !air;
   const ph = h.stride;
   const lane = LANE[h.i];
   ctx.save();
   ctx.translate(x, y + (moving ? Math.sin(ph * 2) * 1.5 : 0));
   ctx.scale(s, s);
-  // shadow
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(4, 6, 50, 17, 0, 0, TAU); ctx.fill();
   // legs (gallop: front and hind pairs swing alternately)
   const sw = moving ? Math.sin(ph) : 0, sw2 = moving ? Math.sin(ph + Math.PI * 0.8) : 0;
   ctx.fillStyle = h.dark;
   const leg = (lx, ly, d) => { ctx.beginPath(); ctx.ellipse(lx + d * 14, ly, 9, 3.4, 0, 0, TAU); ctx.fill(); };
-  leg(22, -11, sw); leg(22, 11, sw * 0.8); leg(-24, -11, sw2); leg(-24, 11, sw2 * 0.8);
+  if (air) { leg(14, -9, -0.4); leg(14, 9, -0.4); leg(-18, -9, 0.4); leg(-18, 9, 0.4); }   // legs tucked in flight
+  else { leg(22, -11, sw); leg(22, 11, sw * 0.8); leg(-24, -11, sw2); leg(-24, 11, sw2 * 0.8); }
   // tail
   ctx.strokeStyle = h.dark; ctx.lineWidth = 7; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(-36, 0); ctx.quadraticCurveTo(-52, Math.sin(ph * 1.3) * 7, -64, Math.sin(ph * 1.3 + 1) * 10); ctx.stroke();
@@ -559,6 +709,20 @@ function drawHorse(h, x, y) {
   ctx.beginPath(); ctx.moveTo(44, bob - 5); ctx.lineTo(40, bob - 10); ctx.lineTo(47, bob - 6); ctx.fill();
   ctx.beginPath(); ctx.moveTo(44, bob + 5); ctx.lineTo(40, bob + 10); ctx.lineTo(47, bob + 6); ctx.fill();
   ctx.strokeStyle = h.dark; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(22, 0); ctx.quadraticCurveTo(32, -1, 44, bob); ctx.stroke();
+  // wings (gift flight)
+  const T = FLY[h.flyTier];
+  if (h.alt > 0.05 && T.wings) {
+    const flap = 0.5 + 0.5 * Math.sin(race.t * 13 + h.i);
+    const span = (30 + 26 * flap) * Math.min(1, h.alt / 0.6);
+    for (const sd of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(16, sd * 10);
+      ctx.quadraticCurveTo(4, sd * (10 + span * 0.95), -28, sd * (12 + span));
+      ctx.quadraticCurveTo(-14, sd * (10 + span * 0.45), -12, sd * 10); ctx.closePath();
+      ctx.fillStyle = T.rainbow ? `hsl(${(race.t * 120 + sd * 40) % 360},90%,72%)` : T.wings; ctx.fill();
+      ctx.strokeStyle = 'rgba(120,90,40,.45)'; ctx.lineWidth = 1.5;
+      for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(6 - k * 6, sd * 12); ctx.lineTo(-18 + k * 9, sd * (12 + span * (0.95 - k * 0.22))); ctx.stroke(); }
+    }
+  }
   // saddle cloth with number
   ctx.fillStyle = hsl(lane); roundRect(-16, -16, 30, 32, 5); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.stroke();
@@ -581,37 +745,53 @@ function drawHorse(h, x, y) {
   ctx.beginPath(); ctx.arc(tx, ty, 16, 0, TAU); ctx.fillStyle = hsl(lane); ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
   text(String(h.i + 1), tx, ty + 1, 21, '#fff', 'center', 900);
-  // speed-feed aura
-  if (race.t < h.giftUntil) {
+  // speed lines while boosted
+  if (race.t < h.boostUntil) {
     ctx.strokeStyle = `hsla(45,100%,60%,${0.5 + 0.4 * pulse(12)})`; ctx.lineWidth = 4;
     for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(x - 95 - k * 18, y - 16 + k * 16); ctx.lineTo(x - 150 - k * 18 - Math.random() * 30, y - 16 + k * 16); ctx.stroke(); }
+  }
+  // dizzy stars
+  if (race.t < h.dizzyUntil) for (let k = 0; k < 3; k++) {
+    const a = race.t * 6 + k * TAU / 3;
+    text('⭐', x + 4 + Math.cos(a) * 22, y - 34 + Math.sin(a) * 8, 16, '#fff', 'center', 400);
   }
 }
 
 function drawTrack() {
   drawSteppe();
-  for (const h of race.horses) {
-    const y = TRACK.top + TRACK.laneH * (h.i + 0.5);
-    const x = wx(h.x);
+  const list = [...race.horses].sort((a, b) => a.alt - b.alt);   // flying horses on top
+  for (const h of list) {
+    const gy = TRACK.top + TRACK.laneH * (h.i + 0.5);
+    const x = wx(h.x), y = Math.max(gy - h.alt * 42, TRACK.top + 30);   // top lane: don't fly out of frame
     h.screenX = x; h.screenY = y;
-    // dust
-    if (h.v > 40 && race.phase === PHASE.RACE) {
-      h.dustAcc += h.v / 900;
-      while (h.dustAcc > 1) { h.dustAcc--; race.particles.push({ x: x - 80, y: y + rand(-10, 10), vx: rand(-90, -30), vy: rand(-20, 20), life: rand(0.4, 0.8), t: 0, r: rand(4, 9), color: { h: 35, s: 30, l: 62 }, dust: true }); }
+    if (race.phase === PHASE.RACE && x > -70 && x < W + 80) {
+      if (h.v > 40 && h.alt < 0.15) {          // dust from hooves
+        h.dustAcc += h.v / 900;
+        while (h.dustAcc > 1) { h.dustAcc--; race.particles.push({ x: x - 80, y: gy + rand(-10, 10), vx: rand(-90, -30), vy: rand(-20, 20), life: rand(0.4, 0.8), t: 0, r: rand(4, 9), color: { h: 35, s: 30, l: 62 }, dust: true }); }
+      }
+      if (h.alt > 0.2) {                        // sparkle trail in flight
+        const T = FLY[h.flyTier];
+        for (let k = 0; k < 2; k++) race.particles.push({ x: x - 60 + rand(-10, 10), y: y + rand(-14, 14), vx: rand(-160, -60), vy: rand(-20, 20), life: rand(0.4, 0.9), t: 0, r: rand(3, 6),
+          color: T.rainbow ? { h: (race.t * 200 + k * 60) % 360, s: 95, l: 65 } : T.wings === '#ffffff' ? { h: 200, s: 30, l: 92 } : GOLD });
+      }
     }
     if (x < -70) {
-      // horse is behind the camera: show an arrow with the gap
       const gap = (race.camX + 20 - h.x) / L * race.cls.km;
-      ctx.fillStyle = 'rgba(0,0,0,.45)'; roundRect(6, y - 22, 118, 44, 22); ctx.fill();
-      ctx.beginPath(); ctx.arc(30, y, 16, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill();
-      text(String(h.i + 1), 30, y + 1, 20, '#fff', 'center', 900);
-      text(`◀ ${gap.toFixed(1)}км`, 86, y + 1, 17, '#fff', 'center', 800);
-    } else if (x < W + 80) drawHorse(h, x, y);
-    else {
-      ctx.beginPath(); ctx.arc(W - 30, y, 16, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill();
-      text(String(h.i + 1), W - 30, y + 1, 20, '#fff', 'center', 900);
+      ctx.fillStyle = 'rgba(0,0,0,.45)'; roundRect(6, gy - 22, 118, 44, 22); ctx.fill();
+      ctx.beginPath(); ctx.arc(30, gy, 16, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill();
+      text(String(h.i + 1), 30, gy + 1, 20, '#fff', 'center', 900);
+      text(`◀ ${gap.toFixed(1)}км`, 86, gy + 1, 17, '#fff', 'center', 800);
+    } else if (x < W + 80) {
+      // shadow stays on the ground; it shrinks and drifts as the horse rises
+      const sc = race.cls.size * 1.6;
+      ctx.fillStyle = `rgba(0,0,0,${0.25 * (1 - h.alt * 0.45)})`;
+      ctx.beginPath(); ctx.ellipse(x + 6 + h.alt * 16, gy + 8, 50 * sc * (1 - h.alt * 0.3), 16 * sc * (1 - h.alt * 0.3), 0, 0, TAU); ctx.fill();
+      drawHorse(h, x, y);
+    } else {
+      ctx.beginPath(); ctx.arc(W - 30, gy, 16, 0, TAU); ctx.fillStyle = hsl(LANE[h.i]); ctx.fill();
+      text(String(h.i + 1), W - 30, gy + 1, 20, '#fff', 'center', 900);
     }
-    if (h.finished && h.place) text(['🥇', '🥈', '🥉'][h.place - 1] || `#${h.place}`, Math.min(x + 60, W - 70), y, 30, '#fff', 'center', 900, 5);
+    if (h.finished && h.place) text(['🥇', '🥈', '🥉'][h.place - 1] || `#${h.place}`, Math.min(x + 60, W - 70), gy, 30, '#fff', 'center', 900, 5);
   }
 }
 
@@ -620,6 +800,11 @@ function drawMinimap() {
   roundRect(x0 - 20, y - 22, x1 - x0 + 40, 44, 22); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
   text('🚩', x0 - 4, y - 1, 20, '#fff', 'center', 400); text('🏁', x1 + 4, y - 1, 20, '#fff', 'center', 400);
+  for (const o of race.objects) {
+    const ox = lerp(x0, x1, o.x / L);
+    if (o.type === 'river') { ctx.fillStyle = '#4fb0e3'; ctx.fillRect(ox - 6, y - 14, 12, 28); }
+    else if (o.type === 'box' && !o.taken) text('?', ox, y - 1, 16, '#ffd166', 'center', 900, 3);
+  }
   const sorted = [...race.horses].sort((a, b) => a.x - b.x);
   for (const h of sorted) {
     const x = lerp(x0, x1, clamp(h.x / L, 0, 1));
@@ -675,8 +860,8 @@ function drawHeader() {
   const cards = [
     ['vote', '💬', '1–6 БИЧ', 'Морь сонгох', CYAN],
     ['like', '❤', 'LIKE', 'Хурдлуулах', RED],
-    ['rose', '🌹', 'ROSE', 'Давхиа нэмэх', { h: 330, s: 90, l: 62 }],
-    ['gift', '🎁', 'GIFT', 'Хурдны тэжээл', GOLD],
+    ['rose', '🌹', 'ROSE', 'Морь үсрэх', { h: 330, s: 90, l: 62 }],
+    ['gift', '🎁', 'GIFT', 'Морь НИСЭХ 🪽', GOLD],
   ];
   const cw = 252, chh = 88, cy = 234, gap = 8;
   cards.forEach(([key, ic, title, desc, col], i) => {
@@ -760,8 +945,9 @@ function drawResult() {
     text(`👥 ${h.votes.size}`, W - 170, ry, 22, 'rgba(255,255,255,.85)', 'right', 800);
   });
   const last = order[order.length - 1];
-  text(`🐴 Бүүрэг: ${last.i + 1} ${last.name} — бүүрэг ч гэсэн баатар!`, W / 2, top + 505, 24, '#ffb3c1', 'center', 800, 5);
-  text(winners.length ? `✅ ${winners.length} хүн зөв таалаа · +${CFG.pointsWin[0]} оноо` : 'Энэ удаад хэн ч таасангүй', W / 2, top + 552, 28, '#6dffb0', 'center', 900, 6);
+  text(`🐴 Бүүрэг: ${last.i + 1} ${last.name} — бүүрэг ч гэсэн баатар!`, W / 2, top + 490, 24, '#ffb3c1', 'center', 800, 5);
+  if (race.lastResult.streak) text(`🔥 ${race.lastResult.streak.name} ${race.lastResult.streak.streak} удаа дараалан таалаа!`, W / 2, top + 526, 26, '#ffd166', 'center', 900, 6);
+  text(winners.length ? `✅ ${winners.length} хүн зөв таалаа · +${CFG.pointsWin[0]} оноо` : 'Энэ удаад хэн ч таасангүй', W / 2, top + 562, 28, '#6dffb0', 'center', 900, 6);
   const nextIdx = race.round + 1;
   text(nextIdx < 6 ? `Дараагийн уралдаан: ${CLASSES[nextIdx].name} · ${Math.ceil(CFG.resultSec - race.phaseT)}с` : `Наадмын дүн ${Math.ceil(CFG.resultSec - race.phaseT)}с`,
     W / 2, top + 600, 24, 'rgba(255,255,255,.75)', 'center', 700);
@@ -792,7 +978,7 @@ function drawBanner() {
   const t = b.t, inK = clamp(t / 0.22, 0, 1), outK = clamp((b.dur - t) / 0.3, 0, 1);
   const s = (0.6 + 0.4 * (1 - Math.pow(1 - inK, 3))) * (outK < 1 ? 0.9 + 0.1 * outK : 1);
   ctx.save(); ctx.globalAlpha = Math.min(inK * 1.5, outK);
-  ctx.translate(W / 2, TRACK.top + 70); ctx.scale(s, s);
+  ctx.translate(W / 2, TRACK_BOTTOM + 150); ctx.scale(s, s);   // over the cards, never over the horses
   const w = 900, h = b.sub ? 124 : 92;
   roundRect(-w / 2, -h / 2, w, h, 28); ctx.fillStyle = 'rgba(8,14,26,.86)'; ctx.fill();
   ctx.lineWidth = 5; ctx.strokeStyle = hsl(b.color); ctx.stroke();
@@ -815,6 +1001,7 @@ function render() {
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.drawImage(bgCanvas, 0, 0, W, H);
   ctx.save(); ctx.beginPath(); ctx.rect(0, TRACK.top - 26, W, TRACK_BOTTOM - TRACK.top + 52); ctx.clip();
+  if (race.shake > 0) ctx.translate(rand(-1, 1) * race.shake * 20, rand(-1, 1) * race.shake * 20);
   drawTrack();
   for (const q of race.particles) {
     const a = 1 - q.t / q.life; ctx.globalAlpha = a * (q.dust ? 0.6 : 1); ctx.fillStyle = hsl(q.color, q.dust ? 0 : 10);
@@ -822,7 +1009,10 @@ function render() {
     else { ctx.beginPath(); ctx.arc(q.x, q.y, q.r * (q.dust ? 1 + q.t : a), 0, TAU); ctx.fill(); }
   }
   ctx.globalAlpha = 1;
-  for (const f of race.floaters) { ctx.globalAlpha = clamp(1.1 - f.t, 0, 1); text(f.text, f.x, f.y, 26, '#ff4d8d', 'center', 900); }
+  for (const f of race.floaters) {
+    if (f.h) { ctx.globalAlpha = clamp(2.2 - f.t, 0, 1); text(f.text, f.h.screenX, f.h.screenY - 64 - f.t * 12, 30, hsl(f.color, 15), 'center', 900, 7); }
+    else { ctx.globalAlpha = clamp(1.1 - f.t, 0, 1); text(f.text, f.x, f.y, 26, '#ff4d8d', 'center', 900); }
+  }
   ctx.globalAlpha = 1;
   drawVoteOverlay(); drawReadyOverlay(); drawResult(); drawFinale();
   ctx.restore();
@@ -830,6 +1020,8 @@ function render() {
   drawCards();
   drawHeader();
   drawBanner();
+  if (race.flashScreen > 0) { ctx.fillStyle = `rgba(255,255,255,${race.flashScreen * 0.6})`; ctx.fillRect(0, SAFE.top, W, SAFE.bottom - SAFE.top); }
+  if (race.timeScale < 0.9) { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(0, TRACK.top - 26, W, 10); ctx.fillRect(0, TRACK_BOTTOM + 16, W, 10); }
   drawSafeZones();
   if (audioHint && !audio.running) {
     roundRect(330, 1240, 420, 52, 26); ctx.fillStyle = 'rgba(255,45,85,.9)'; ctx.fill();
@@ -871,7 +1063,13 @@ const RACE_LINES = [
   ['r_giingoo',  'Гийнгоо',             'Гийн гоо! Морьд гараанд бэлэн боллоо!'],
   ['r_go',       'Гараанаас гарах',     'Морьд гараанаас мордлоо! Like дарж морио хурдлуулаарай!'],
   ['r_lead',     'Тэргүүлэгч солигдох', 'Тэргүүлэгч солигдлоо!'],
-  ['r_gift',     'Хурдны тэжээл',       'Хурдны тэжээл! Морь нисэж байна!'],
+  ['r_fly',      'Морь нисэх (gift)',   'Хараач! Морь нислээ!'],
+  ['r_kheemori', 'Хийморь (том gift)',  'Хийморь! Алтан хүлэг болж нислээ!'],
+  ['r_river',    'Гол анхааруулга',     'Урд гол байна! Нисэх морь л дээгүүр нь гатална!'],
+  ['r_box',      'Нууц хайрцаг',        'Нууц хайрцаг! Юу болох бол?'],
+  ['r_stumble',  'Бүдрэх',              'Өө! Морь бүдэрлээ! Одоо юу болох бол?'],
+  ['r_comeback', 'Хийморь сэргэх',      'Хийморь сэргэлээ! Сүүлийн морь гүйцэж байна!'],
+  ['r_photo',    'Фото финиш',          'Фото финиш! Хэн нь түрүүлэх вэ?!'],
   ['r_final',    'Бариа ойртох',        'Бариа ойртож байна! Сүүлчийн хүчээ гаргаарай!'],
   ['r_win',      'Түрүүлэх',            'Түрүү морь бариандаа орлоо!'],
   ['r_buureg',   'Бүүрэг',              'Бүүрэг ч гэсэн баатар!'],
